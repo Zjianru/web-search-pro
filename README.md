@@ -39,6 +39,7 @@ When `--engine` is not specified, the skill picks the best available engine base
 | Default | Tavily > Exa > Serper > SerpAPI | Tavily has best AI answer + full filters |
 | `--deep` | Tavily > Exa | Both have dedicated deep search modes |
 | `--news` | Serper > Tavily | Google News has widest coverage |
+| `--news --days` | Tavily only | `--days` is Tavily news-specific parameter |
 | `--include-domains` | Tavily > Exa > Serper > SerpAPI | Tavily/Exa have native domain filters |
 | `--search-engine baidu` | SerpAPI | Only SerpAPI supports Baidu/Yandex |
 
@@ -119,6 +120,20 @@ node scripts/extract.mjs "https://example.com/article"
 | `--country <code>` | Country code (us, cn, de...) | serper, serpapi |
 | `--lang <code>` | Language code (en, zh, de...) | serper, serpapi |
 | `--json` | Raw JSON output | all |
+
+## Notes / 说明
+
+- At least one API key must be configured
+- Metadata explicitly lists all supported provider keys for review/lint visibility; runtime behavior still accepts any single configured key
+- `--search-engine <name>` always uses SerpAPI and requires `SERPAPI_API_KEY`
+- `--deep` only works on Tavily/Exa; if both keys are missing, command exits with an error
+- `--news` only works on Tavily/Serper/SerpAPI; if none are available, command exits with an error
+- `--days` only works with Tavily news mode
+- `--news --days <n>` auto-selects Tavily; if Tavily key is missing, command exits with an error
+- Domain filtering via `--include-domains`/`--exclude-domains` works natively on Tavily and Exa; on Serper/SerpAPI it's implemented via `site:` query operators
+- `--deep` mode uses more API credits (Tavily: 2x, Exa: varies)
+- Extract only works with Tavily and Exa
+- Missing/invalid option values fail fast with explicit CLI error messages (no silent fallback, no runtime TypeError)
 
 ## License / 许可
 

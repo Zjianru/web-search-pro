@@ -30,7 +30,7 @@ export async function search(query, opts = {}) {
 
   const body = {
     q,
-    num: Math.max(1, Math.min(opts.count ?? 5, 100)),
+    num: normalizeCount(opts.count, 100),
   };
 
   // Date range via tbs parameter
@@ -38,10 +38,10 @@ export async function search(query, opts = {}) {
     const tbsMap = { day: "qdr:d", week: "qdr:w", month: "qdr:m", year: "qdr:y" };
     if (tbsMap[opts.timeRange]) body.tbs = tbsMap[opts.timeRange];
   }
-  if (opts.fromDate && opts.toDate) {
-    body.tbs = `cdr:1,cd_min:${fmtSerperDate(opts.fromDate)},cd_max:${fmtSerperDate(opts.toDate)}`;
-  } else if (opts.fromDate) {
-    body.tbs = `cdr:1,cd_min:${fmtSerperDate(opts.fromDate)},cd_max:`;
+  if (opts.fromDate || opts.toDate) {
+    const min = opts.fromDate ? fmtSerperDate(opts.fromDate) : "1/1/1970";
+    const max = opts.toDate ? fmtSerperDate(opts.toDate) : "";
+    body.tbs = `cdr:1,cd_min:${min},cd_max:${max}`;
   }
 
   if (opts.country) body.gl = opts.country.toLowerCase();
@@ -77,6 +77,12 @@ export async function search(query, opts = {}) {
       date: r.date ?? null,
     })),
   };
+}
+
+function normalizeCount(value, max) {
+  const n = Number.parseInt(String(value ?? 5), 10);
+  if (!Number.isFinite(n)) return 5;
+  return Math.max(1, Math.min(n, max));
 }
 
 function fmtSerperDate(dateStr) {

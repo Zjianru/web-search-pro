@@ -6,7 +6,7 @@
 import * as tavily from "./engines/tavily.mjs";
 import * as exa from "./engines/exa.mjs";
 
-function usage() {
+function usage(exitCode = 2) {
   console.error(`web-search-pro extract — Extract readable content from URLs
 
 Usage:
@@ -19,27 +19,39 @@ Options:
 Environment variables (at least one):
   TAVILY_API_KEY     Tavily Extract API
   EXA_API_KEY        Exa contents API with livecrawl`);
-  process.exit(2);
+  process.exit(exitCode);
 }
 
 const args = process.argv.slice(2);
-if (args.length === 0 || args[0] === "-h" || args[0] === "--help") usage();
+if (args.length === 0) usage();
 
 let engineName = null;
 let json = false;
 const urls = [];
 
+function fail(message, code = 2) {
+  console.error(message);
+  process.exit(code);
+}
+
+function readOptionValue(args, i, optionName) {
+  const value = args[i + 1];
+  if (value === undefined || value === "") {
+    fail(`Missing value for ${optionName}`);
+  }
+  return value;
+}
+
 for (let i = 0; i < args.length; i++) {
-  if (args[i] === "--engine") { engineName = args[++i]; continue; }
+  if (args[i] === "-h" || args[i] === "--help") usage(0);
+  if (args[i] === "--engine") { engineName = readOptionValue(args, i, "--engine"); i++; continue; }
   if (args[i] === "--json") { json = true; continue; }
   if (!args[i].startsWith("-")) { urls.push(args[i]); continue; }
-  console.error(`Unknown option: ${args[i]}`);
-  usage();
+  fail(`Unknown option: ${args[i]}`);
 }
 
 if (urls.length === 0) {
-  console.error("No URLs provided");
-  usage();
+  fail("No URLs provided");
 }
 
 const engines = [tavily, exa];

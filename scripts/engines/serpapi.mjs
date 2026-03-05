@@ -41,7 +41,7 @@ export async function search(query, opts = {}) {
     api_key: apiKey,
     engine,
     q,
-    num: String(Math.max(1, Math.min(opts.count ?? 5, 100))),
+    num: String(normalizeCount(opts.count, 100)),
   });
 
   // Date range (Google tbs)
@@ -50,10 +50,10 @@ export async function search(query, opts = {}) {
       const tbsMap = { day: "qdr:d", week: "qdr:w", month: "qdr:m", year: "qdr:y" };
       if (tbsMap[opts.timeRange]) params.set("tbs", tbsMap[opts.timeRange]);
     }
-    if (opts.fromDate && opts.toDate) {
-      const [y1, m1, d1] = opts.fromDate.split("-");
-      const [y2, m2, d2] = opts.toDate.split("-");
-      params.set("tbs", `cdr:1,cd_min:${parseInt(m1)}/${parseInt(d1)}/${y1},cd_max:${parseInt(m2)}/${parseInt(d2)}/${y2}`);
+    if (opts.fromDate || opts.toDate) {
+      const min = opts.fromDate ? fmtGoogleDate(opts.fromDate) : "1/1/1970";
+      const max = opts.toDate ? fmtGoogleDate(opts.toDate) : "";
+      params.set("tbs", `cdr:1,cd_min:${min},cd_max:${max}`);
     }
     if (opts.news) params.set("tbm", "nws");
   }
@@ -69,7 +69,9 @@ export async function search(query, opts = {}) {
   }
 
   const data = await resp.json();
-  const items = data.organic_results ?? data.news_results ?? [];
+  const items = opts.news
+    ? (data.news_results ?? data.organic_results ?? [])
+    : (data.organic_results ?? data.news_results ?? []);
 
   return {
     engine: `serpapi:${engine}`,
@@ -82,6 +84,18 @@ export async function search(query, opts = {}) {
       date: r.date ?? null,
     })),
   };
+}
+
+function normalizeCount(value, max) {
+  const n = Number.parseInt(String(value ?? 5), 10);
+  if (!Number.isFinite(n)) return 5;
+  return Math.max(1, Math.min(n, max));
+}
+
+function fmtGoogleDate(dateStr) {
+  // YYYY-MM-DD -> M/D/YYYY
+  const [y, m, d] = dateStr.split("-");
+  return `${parseInt(m, 10)}/${parseInt(d, 10)}/${y}`;
 }
 
 export async function extract(_urls) {

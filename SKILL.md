@@ -7,7 +7,14 @@ description: |
   多引擎精细化搜索：支持域名过滤、日期范围、深度搜索、新闻模式、内容提取。
   根据查询类型和可用 API Key 自动选择最优引擎。
 homepage: https://github.com/Zjianru/web-search-pro
-metadata: {"clawdbot":{"emoji":"🔎","requires":{"bins":["node"],"env_any":["TAVILY_API_KEY","EXA_API_KEY","SERPER_API_KEY","SERPAPI_API_KEY"]}}}
+metadata:
+  openclaw:
+    emoji: "🔎"
+    always: true
+    requires:
+      bins: ["node"]
+      env: ["TAVILY_API_KEY", "EXA_API_KEY", "SERPER_API_KEY", "SERPAPI_API_KEY"]
+    primaryEnv: "TAVILY_API_KEY"
 ---
 
 # Web Search Pro
@@ -40,9 +47,9 @@ When `--engine` is not specified, the skill picks the best available engine:
 | Default | Tavily > Exa > Serper > SerpAPI | Tavily has best AI answer + full filters |
 | `--deep` | Tavily > Exa | Both have dedicated deep search modes |
 | `--news` | Serper > Tavily | Google News has widest coverage |
+| `--news --days` | Tavily only | `--days` is Tavily news-specific parameter |
 | `--include-domains` | Tavily > Exa > Serper > SerpAPI | Tavily/Exa have native domain filters |
 | `--search-engine baidu` | SerpAPI | Only SerpAPI supports Baidu/Yandex |
-| Chinese queries | SerpAPI (Baidu) > Serper | Baidu has better Chinese results |
 
 ## Search / 搜索
 
@@ -126,7 +133,14 @@ SERPAPI_API_KEY=xxxxx            # https://serpapi.com (250 free/month)
 ## Notes / 说明
 
 - At least one API key must be configured
+- Metadata explicitly lists all supported provider keys for review/lint visibility; runtime behavior still accepts any single configured key
+- `--search-engine <name>` always uses SerpAPI and requires `SERPAPI_API_KEY`
+- `--deep` only works on Tavily/Exa; if both keys are missing, command exits with an error
+- `--news` only works on Tavily/Serper/SerpAPI; if none are available, command exits with an error
+- `--days` only works with Tavily news mode
+- `--news --days <n>` auto-selects Tavily; if Tavily key is missing, command exits with an error
 - Domain filtering via `--include-domains`/`--exclude-domains` works natively on Tavily and Exa; on Serper/SerpAPI it's implemented via `site:` query operators
 - `--deep` mode uses more API credits (Tavily: 2x, Exa: varies)
 - Extract only works with Tavily and Exa
+- Missing/invalid option values fail fast with explicit CLI error messages (no silent fallback, no runtime TypeError)
 - All output is Markdown-formatted for AI agent consumption; use `--json` for programmatic access
