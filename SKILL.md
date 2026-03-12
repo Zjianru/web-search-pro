@@ -7,14 +7,7 @@ description: |
   多引擎精细化搜索：支持域名过滤、日期范围、深度搜索、新闻模式、内容提取。
   根据查询类型和可用 API Key 自动选择最优引擎。
 homepage: https://github.com/Zjianru/web-search-pro
-metadata:
-  openclaw:
-    emoji: "🔎"
-    always: true
-    requires:
-      bins: ["node"]
-      env: ["TAVILY_API_KEY"]
-    primaryEnv: "TAVILY_API_KEY"
+metadata: {"openclaw":{"emoji":"🔎","requires":{"bins":["node"]}}}
 ---
 
 # Web Search Pro
@@ -133,11 +126,9 @@ SERPAPI_API_KEY=xxxxx            # https://serpapi.com (250 free/month)
 ## Notes / 说明
 
 - At least one API key must be configured
-- Metadata declares runtime prerequisites explicitly:
-  - `requires.bins`: `node`
-  - `requires.env`: `TAVILY_API_KEY` (primary onboarding key)
-  - `primaryEnv`: `TAVILY_API_KEY`
-- Other provider keys (`EXA_API_KEY`, `SERPER_API_KEY`, `SERPAPI_API_KEY`) are optional and used when `--engine`/auto-select routes to those engines
+- Skill metadata only declares the `node` runtime, because this skill supports multiple alternative provider keys and OpenClaw metadata does not currently support an `env_any` / one-of env requirement
+- Provider key validation happens at command execution time, based on the selected engine and flags
+- Any one of these keys can enable part of the skill: `TAVILY_API_KEY`, `EXA_API_KEY`, `SERPER_API_KEY`, `SERPAPI_API_KEY`
 - `--search-engine <name>` always uses SerpAPI and requires `SERPAPI_API_KEY`
 - `--deep` only works on Tavily/Exa; if both keys are missing, command exits with an error
 - `--news` only works on Tavily/Serper/SerpAPI; if none are available, command exits with an error
