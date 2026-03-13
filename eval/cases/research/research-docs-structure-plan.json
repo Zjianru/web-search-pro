@@ -1,0 +1,27 @@
+{
+  "id": "research-docs-structure-plan",
+  "suite": "research",
+  "description": "Documentation topics with seed URLs should plan extract and map without forcing crawl.",
+  "intent": "research",
+  "tags": ["docs", "plan"],
+  "command": {
+    "name": "research",
+    "argv": ["OpenClaw documentation structure", "--seed-url", "https://example.com/docs", "--plan", "--json"]
+  },
+  "constraints": {
+    "requiresNetwork": false
+  },
+  "expectedSignals": {
+    "exitCode": 0,
+    "topicTypeIn": ["docs"],
+    "subquestionIntentsIncludeAll": ["overview", "official-sources", "site-structure", "comparison"],
+    "taskKindsIncludeAll": ["search", "extract", "map"]
+  },
+  "scoring": {
+    "threshold": 1,
+    "weights": {
+      "decomposition": 0.45,
+      "planning": 0.55
+    }
+  }
+}

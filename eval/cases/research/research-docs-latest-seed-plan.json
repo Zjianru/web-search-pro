@@ -1,0 +1,29 @@
+{
+  "id": "research-docs-latest-seed-plan",
+  "suite": "research",
+  "description": "Seeded docs research should keep mixed docs/latest decomposition while planning extract and map only.",
+  "intent": "research",
+  "tags": ["docs", "latest", "seed", "plan"],
+  "command": {
+    "name": "research",
+    "argv": ["OpenClaw docs latest updates", "--seed-url", "https://example.com/docs", "--max-searches", "0", "--plan", "--json"]
+  },
+  "constraints": {
+    "requiresNetwork": false
+  },
+  "expectedSignals": {
+    "exitCode": 0,
+    "topicTypeIn": ["docs"],
+    "topicSignalsIncludeAll": ["docs", "latest"],
+    "researchAxesIncludeAll": ["baseline-context", "official-proof", "site-structure", "recent-change"],
+    "subquestionIntentsIncludeAll": ["overview", "official-sources", "site-structure", "latest"],
+    "taskKindsIncludeAll": ["extract", "map"]
+  },
+  "scoring": {
+    "threshold": 1,
+    "weights": {
+      "decomposition": 0.45,
+      "planning": 0.55
+    }
+  }
+}

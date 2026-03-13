@@ -1,0 +1,27 @@
+{
+  "id": "research-competitive-landscape-plan",
+  "suite": "research",
+  "description": "Landscape topics should decompose into overview, latest, official sources, and comparison.",
+  "intent": "research",
+  "tags": ["landscape", "plan"],
+  "command": {
+    "name": "research",
+    "argv": ["OpenClaw search skill landscape", "--plan", "--json"]
+  },
+  "constraints": {
+    "requiresNetwork": false
+  },
+  "expectedSignals": {
+    "exitCode": 0,
+    "topicTypeIn": ["landscape"],
+    "subquestionIntentsIncludeAll": ["overview", "latest", "official-sources", "comparison"],
+    "taskKindsIncludeAll": ["search"]
+  },
+  "scoring": {
+    "threshold": 1,
+    "weights": {
+      "decomposition": 0.55,
+      "planning": 0.45
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "id": "research-site-structure-dossier-plan",
+  "suite": "research",
+  "description": "Site-structure dossiers should add crawl when crawl is allowed and the output format requests a deeper pack.",
+  "intent": "research",
+  "tags": ["site-structure", "dossier", "plan"],
+  "command": {
+    "name": "research",
+    "argv": ["OpenClaw documentation sitemap", "--seed-url", "https://example.com/docs", "--max-searches", "0", "--format", "dossier", "--plan", "--json"]
+  },
+  "constraints": {
+    "requiresNetwork": false
+  },
+  "expectedSignals": {
+    "exitCode": 0,
+    "topicTypeIn": ["docs"],
+    "subquestionIntentsIncludeAll": ["overview", "official-sources", "site-structure", "comparison"],
+    "taskKindsIncludeAll": ["extract", "map", "crawl"]
+  },
+  "scoring": {
+    "threshold": 1,
+    "weights": {
+      "decomposition": 0.4,
+      "planning": 0.6
+    }
+  }
+}

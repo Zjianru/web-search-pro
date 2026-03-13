@@ -1,0 +1,44 @@
+{
+  "id": "research-gap-followup-example-pack",
+  "suite": "research",
+  "description": "Gap filling should execute a capped follow-up pass when missing-evidence gaps remain after seeded docs research.",
+  "intent": "research",
+  "tags": ["docs", "network", "gap-fill"],
+  "command": {
+    "name": "research",
+    "argv": ["Example.com docs latest updates", "--seed-url", "https://example.com", "--max-searches", "0", "--json"]
+  },
+  "constraints": {
+    "requiresNetwork": true
+  },
+  "expectedSignals": {
+    "exitCode": 0,
+    "topicTypeIn": ["docs"],
+    "topicSignalsIncludeAll": ["docs", "latest"],
+    "researchAxesIncludeAll": ["baseline-context", "official-proof", "site-structure", "recent-change"],
+    "taskKindsIncludeAll": ["extract", "map"],
+    "minEvidence": 1,
+    "minFindings": 1,
+    "minCitations": 1,
+    "requireOfficialEvidence": true,
+    "requireClaimClusters": true,
+    "requireUncertaintyTypesAny": ["missing-evidence"],
+    "requireProviderUsageAny": ["fetch"],
+    "requireGapResolutionAttempted": true,
+    "minFollowupTasksExecuted": 1,
+    "maxFollowupTasksExecuted": 2,
+    "maxFailed": 0
+  },
+  "scoring": {
+    "threshold": 0.75,
+    "weights": {
+      "decomposition": 0.1,
+      "planning": 0.15,
+      "evidence": 0.25,
+      "findings": 0.15,
+      "uncertainty": 0.15,
+      "citation": 0.1,
+      "execution": 0.1
+    }
+  }
+}

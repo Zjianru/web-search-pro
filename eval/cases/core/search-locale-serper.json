@@ -1,0 +1,29 @@
+{
+  "id": "search-locale-serper",
+  "suite": "core",
+  "description": "Locale-sensitive SERP route remains available when Serper credentials exist.",
+  "intent": "localized",
+  "tags": ["premium", "localized"],
+  "command": {
+    "name": "search",
+    "argv": ["AI regulation", "--engine", "serper", "--country", "us", "--lang", "en"]
+  },
+  "constraints": {
+    "requiresNetwork": true,
+    "requiredEnvAll": ["SERPER_API_KEY"]
+  },
+  "expectedSignals": {
+    "exitCode": 0,
+    "selectedProviderIn": ["serper"],
+    "minResults": 1,
+    "maxFailed": 0
+  },
+  "scoring": {
+    "threshold": 0.8,
+    "weights": {
+      "routing": 0.4,
+      "coverage": 0.4,
+      "safety": 0.2
+    }
+  }
+}

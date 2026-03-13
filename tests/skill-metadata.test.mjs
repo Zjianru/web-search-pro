@@ -22,7 +22,23 @@ test("skill metadata does not overstate credential requirements", () => {
   assert.deepEqual(openclaw.requires?.env ?? [], []);
 });
 
-test("skill documentation still states that at least one provider key is required", () => {
-  assert.match(content, /At least one API key must be configured/);
-  assert.match(content, /Any one of these keys can enable part of the skill/);
+test("skill documentation explains the no-key baseline and optional provider keys", () => {
+  assert.match(content, /No API key is required for the baseline/i);
+  assert.match(content, /Optional provider keys unlock enhanced features/i);
+  assert.match(content, /doctor\.mjs/);
+  assert.match(content, /capabilities\.mjs/);
+  assert.match(content, /review\.mjs/);
+  assert.match(content, /cache\.mjs/);
+  assert.match(content, /health\.mjs/);
+  assert.match(content, /eval\.mjs/);
+  assert.match(content, /enableFederation/);
+  assert.match(content, /federated/);
+  assert.match(content, /render\.mjs/);
+  assert.match(content, /render\.enabled/);
+  assert.match(content, /render\.policy/);
+  assert.match(content, /renderLane/);
+  assert.match(content, /headless browser/i);
+  assert.match(content, /map\.mjs/);
+  assert.match(content, /config\.json/);
+  assert.match(content, /--plan/);
 });

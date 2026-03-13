@@ -1,0 +1,29 @@
+{
+  "id": "research-docs-latest-plan",
+  "suite": "research",
+  "description": "Mixed docs and latest topics should expose both topic signals and recent-change planning.",
+  "intent": "research",
+  "tags": ["docs", "latest", "plan"],
+  "command": {
+    "name": "research",
+    "argv": ["OpenClaw docs latest updates", "--plan", "--json"]
+  },
+  "constraints": {
+    "requiresNetwork": false
+  },
+  "expectedSignals": {
+    "exitCode": 0,
+    "topicTypeIn": ["docs"],
+    "topicSignalsIncludeAll": ["docs", "latest"],
+    "researchAxesIncludeAll": ["baseline-context", "official-proof", "site-structure", "recent-change"],
+    "subquestionIntentsIncludeAll": ["overview", "official-sources", "site-structure", "latest"],
+    "taskKindsIncludeAll": ["search"]
+  },
+  "scoring": {
+    "threshold": 1,
+    "weights": {
+      "decomposition": 0.6,
+      "planning": 0.4
+    }
+  }
+}

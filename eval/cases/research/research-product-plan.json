@@ -1,0 +1,27 @@
+{
+  "id": "research-product-plan",
+  "suite": "research",
+  "description": "Product-oriented research should remain structured without expanding the public CLI surface.",
+  "intent": "research",
+  "tags": ["product", "plan"],
+  "command": {
+    "name": "research",
+    "argv": ["OpenClaw product feature set", "--plan", "--json"]
+  },
+  "constraints": {
+    "requiresNetwork": false
+  },
+  "expectedSignals": {
+    "exitCode": 0,
+    "topicTypeIn": ["product"],
+    "subquestionIntentsIncludeAll": ["overview", "latest", "official-sources", "comparison"],
+    "taskKindsIncludeAll": ["search"]
+  },
+  "scoring": {
+    "threshold": 1,
+    "weights": {
+      "decomposition": 0.55,
+      "planning": 0.45
+    }
+  }
+}

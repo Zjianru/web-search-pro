@@ -1,0 +1,31 @@
+{
+  "id": "extract-baseline-example-fetch",
+  "suite": "core",
+  "description": "Safe Fetch baseline extracts readable text from example.com.",
+  "intent": "extract",
+  "tags": ["baseline", "extract"],
+  "command": {
+    "name": "extract",
+    "argv": ["https://example.com"]
+  },
+  "constraints": {
+    "requiresNetwork": true
+  },
+  "expectedSignals": {
+    "exitCode": 0,
+    "selectedProviderIn": ["fetch"],
+    "minResults": 1,
+    "mustIncludeUrlSubstringsAny": ["example.com"],
+    "mustContainTextAny": ["Example Domain"],
+    "maxFailed": 0
+  },
+  "scoring": {
+    "threshold": 0.8,
+    "weights": {
+      "routing": 0.2,
+      "coverage": 0.5,
+      "citation": 0.1,
+      "safety": 0.2
+    }
+  }
+}

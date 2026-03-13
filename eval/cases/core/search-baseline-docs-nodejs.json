@@ -1,0 +1,29 @@
+{
+  "id": "search-baseline-docs-nodejs",
+  "suite": "core",
+  "description": "Baseline DDG search can still surface official docs when the query is documentation-shaped.",
+  "intent": "search",
+  "tags": ["baseline", "docs"],
+  "command": {
+    "name": "search",
+    "argv": ["Node.js fs readFile documentation", "--engine", "ddg"]
+  },
+  "constraints": {
+    "requiresNetwork": true
+  },
+  "expectedSignals": {
+    "exitCode": 0,
+    "selectedProviderIn": ["ddg"],
+    "minResults": 1,
+    "mustIncludeDomainsAny": ["nodejs.org"],
+    "maxFailed": 0
+  },
+  "scoring": {
+    "threshold": 0.75,
+    "weights": {
+      "routing": 0.2,
+      "coverage": 0.6,
+      "safety": 0.2
+    }
+  }
+}

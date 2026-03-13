@@ -1,0 +1,29 @@
+{
+  "id": "research-timeline-signals-plan",
+  "suite": "research",
+  "description": "Timeline output should expose both latest and timeline signals while preserving timeline planning.",
+  "intent": "research",
+  "tags": ["timeline", "latest", "plan"],
+  "command": {
+    "name": "research",
+    "argv": ["OpenClaw release history", "--format", "timeline", "--plan", "--json"]
+  },
+  "constraints": {
+    "requiresNetwork": false
+  },
+  "expectedSignals": {
+    "exitCode": 0,
+    "topicTypeIn": ["latest"],
+    "topicSignalsIncludeAll": ["latest", "timeline"],
+    "researchAxesIncludeAll": ["baseline-context", "timeline", "official-proof", "competitive-gap"],
+    "subquestionIntentsIncludeAll": ["overview", "timeline", "official-sources", "comparison"],
+    "taskKindsIncludeAll": ["search"]
+  },
+  "scoring": {
+    "threshold": 1,
+    "weights": {
+      "decomposition": 0.6,
+      "planning": 0.4
+    }
+  }
+}

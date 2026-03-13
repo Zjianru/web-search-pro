@@ -1,0 +1,27 @@
+{
+  "id": "research-timeline-plan",
+  "suite": "research",
+  "description": "Timeline output should introduce a timeline subquestion without widening the primitive set.",
+  "intent": "research",
+  "tags": ["timeline", "plan"],
+  "command": {
+    "name": "research",
+    "argv": ["OpenClaw release history", "--format", "timeline", "--plan", "--json"]
+  },
+  "constraints": {
+    "requiresNetwork": false
+  },
+  "expectedSignals": {
+    "exitCode": 0,
+    "topicTypeIn": ["latest"],
+    "subquestionIntentsIncludeAll": ["overview", "timeline", "official-sources", "comparison"],
+    "taskKindsIncludeAll": ["search"]
+  },
+  "scoring": {
+    "threshold": 1,
+    "weights": {
+      "decomposition": 0.55,
+      "planning": 0.45
+    }
+  }
+}

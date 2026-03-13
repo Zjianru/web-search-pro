@@ -1,0 +1,27 @@
+{
+  "id": "research-competitive-company-plan",
+  "suite": "research",
+  "description": "Company-oriented research stays structured and plan-only.",
+  "intent": "research",
+  "tags": ["company", "plan"],
+  "command": {
+    "name": "research",
+    "argv": ["OpenAI company profile", "--plan", "--json"]
+  },
+  "constraints": {
+    "requiresNetwork": false
+  },
+  "expectedSignals": {
+    "exitCode": 0,
+    "topicTypeIn": ["company"],
+    "subquestionIntentsIncludeAll": ["overview", "latest", "official-sources", "comparison"],
+    "taskKindsIncludeAll": ["search"]
+  },
+  "scoring": {
+    "threshold": 1,
+    "weights": {
+      "decomposition": 0.55,
+      "planning": 0.45
+    }
+  }
+}

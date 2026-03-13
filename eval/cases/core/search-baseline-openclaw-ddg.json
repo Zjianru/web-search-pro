@@ -1,0 +1,30 @@
+{
+  "id": "search-baseline-openclaw-ddg",
+  "suite": "core",
+  "description": "No-key DDG search returns live baseline results for OpenClaw discovery.",
+  "intent": "search",
+  "tags": ["baseline", "search"],
+  "command": {
+    "name": "search",
+    "argv": ["OpenClaw web search", "--engine", "ddg"]
+  },
+  "constraints": {
+    "requiresNetwork": true
+  },
+  "expectedSignals": {
+    "exitCode": 0,
+    "selectedProviderIn": ["ddg"],
+    "minResults": 1,
+    "minDistinctUrls": 1,
+    "maxFailed": 0
+  },
+  "scoring": {
+    "threshold": 0.8,
+    "weights": {
+      "routing": 0.3,
+      "coverage": 0.4,
+      "citation": 0.2,
+      "safety": 0.1
+    }
+  }
+}

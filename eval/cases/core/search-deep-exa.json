@@ -1,0 +1,29 @@
+{
+  "id": "search-deep-exa",
+  "suite": "core",
+  "description": "Exa deep search path stays available when its credential is present.",
+  "intent": "deep",
+  "tags": ["premium", "deep"],
+  "command": {
+    "name": "search",
+    "argv": ["vector database benchmarks", "--engine", "exa", "--deep"]
+  },
+  "constraints": {
+    "requiresNetwork": true,
+    "requiredEnvAll": ["EXA_API_KEY"]
+  },
+  "expectedSignals": {
+    "exitCode": 0,
+    "selectedProviderIn": ["exa"],
+    "minResults": 1,
+    "maxFailed": 0
+  },
+  "scoring": {
+    "threshold": 0.8,
+    "weights": {
+      "routing": 0.4,
+      "coverage": 0.4,
+      "safety": 0.2
+    }
+  }
+}

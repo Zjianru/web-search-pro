@@ -1,0 +1,38 @@
+{
+  "id": "research-docs-example-pack",
+  "suite": "research",
+  "description": "A documentation-oriented research pack should produce evidence and claim clusters from a safe baseline seed URL.",
+  "intent": "research",
+  "tags": ["docs", "network", "evidence-pack"],
+  "command": {
+    "name": "research",
+    "argv": ["Example.com documentation structure", "--seed-url", "https://example.com", "--max-searches", "0", "--json"]
+  },
+  "constraints": {
+    "requiresNetwork": true
+  },
+  "expectedSignals": {
+    "exitCode": 0,
+    "topicTypeIn": ["docs"],
+    "subquestionIntentsIncludeAll": ["overview", "official-sources", "site-structure", "comparison"],
+    "taskKindsIncludeAll": ["extract", "map"],
+    "minEvidence": 1,
+    "minFindings": 1,
+    "minCitations": 1,
+    "requireOfficialEvidence": true,
+    "requireClaimClusters": true,
+    "requireProviderUsageAny": ["fetch"],
+    "maxFailed": 0
+  },
+  "scoring": {
+    "threshold": 0.75,
+    "weights": {
+      "decomposition": 0.15,
+      "planning": 0.15,
+      "evidence": 0.3,
+      "findings": 0.2,
+      "citation": 0.1,
+      "execution": 0.1
+    }
+  }
+}

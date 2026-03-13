@@ -1,0 +1,27 @@
+{
+  "id": "research-docs-dossier-plan",
+  "suite": "research",
+  "description": "Documentation dossiers should plan extract, map, and crawl when seed URLs are present.",
+  "intent": "research",
+  "tags": ["docs", "dossier", "plan"],
+  "command": {
+    "name": "research",
+    "argv": ["OpenClaw documentation structure", "--seed-url", "https://example.com/docs", "--format", "dossier", "--plan", "--json"]
+  },
+  "constraints": {
+    "requiresNetwork": false
+  },
+  "expectedSignals": {
+    "exitCode": 0,
+    "topicTypeIn": ["docs"],
+    "subquestionIntentsIncludeAll": ["overview", "official-sources", "site-structure", "comparison"],
+    "taskKindsIncludeAll": ["search", "extract", "map", "crawl"]
+  },
+  "scoring": {
+    "threshold": 1,
+    "weights": {
+      "decomposition": 0.45,
+      "planning": 0.55
+    }
+  }
+}

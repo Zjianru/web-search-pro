@@ -1,0 +1,31 @@
+{
+  "id": "search-baseline-domain-github",
+  "suite": "core",
+  "description": "Baseline domain-filtered DDG search returns at least one GitHub result.",
+  "intent": "search",
+  "tags": ["baseline", "domain-filtering"],
+  "command": {
+    "name": "search",
+    "argv": ["OpenClaw agent skills", "--engine", "ddg", "--include-domains", "github.com"]
+  },
+  "constraints": {
+    "requiresNetwork": true
+  },
+  "expectedSignals": {
+    "exitCode": 0,
+    "selectedProviderIn": ["ddg"],
+    "minResults": 1,
+    "mustIncludeDomainsAny": ["github.com"],
+    "minDistinctUrls": 1,
+    "maxFailed": 0
+  },
+  "scoring": {
+    "threshold": 0.8,
+    "weights": {
+      "routing": 0.2,
+      "coverage": 0.5,
+      "citation": 0.2,
+      "safety": 0.1
+    }
+  }
+}

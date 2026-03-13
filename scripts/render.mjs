@@ -10,14 +10,13 @@ import { loadRuntimeConfig } from "./lib/config.mjs";
 import {
   loadHealthState,
   recordProviderFailure,
-  recordProviderOutcomes,
+  recordProviderSuccess,
 } from "./lib/health-state.mjs";
 import {
   buildExtractOutput,
   buildPlanOutput,
   formatExtractMarkdown,
 } from "./lib/output.mjs";
-import { executeExtractFlow } from "./lib/extract-flow.mjs";
 import {
   formatPlanMarkdown,
   planExtractRoute,
@@ -25,29 +24,19 @@ import {
   serializePlan,
 } from "./lib/planner.mjs";
 
-const EXTRACT_ENGINES = new Set(["tavily", "exa", "fetch", "render"]);
-
 function usage(exitCode = 2) {
-  console.error(`web-search-pro extract — Extract readable content from URLs
+  console.error(`web-search-pro render — Render and extract readable content in a local browser
 
 Usage:
-  extract.mjs "url1" ["url2" ...] [options]
+  render.mjs "url1" ["url2" ...] [options]
 
 Options:
-  --engine <name>              Force engine: tavily|exa|fetch|render (default: auto)
-  --max-chars <n>              Limit extracted readable text per URL
-  --render                     Enable the browser render lane using config.render.policy
-  --render-policy <mode>       Override render policy: off|fallback|force
-  --render-budget-ms <n>       Browser render budget in milliseconds
-  --render-wait-until <mode>   Browser wait mode: domcontentloaded|networkidle
-  --json                       Output stable JSON schema
-  --plan                       Show route plan only (no provider API call)
-  --explain-routing            Include route explanation in output
-
-Environment variables:
-  WEB_SEARCH_PRO_CONFIG  Optional path to config.json
-  TAVILY_API_KEY         Tavily Extract API
-  EXA_API_KEY            Exa contents API with livecrawl`);
+  --max-chars <n>            Limit extracted readable text per URL
+  --render-budget-ms <n>     Browser render budget in milliseconds
+  --render-wait-until <mode> Wait mode: domcontentloaded|networkidle
+  --json                     Output stable JSON schema
+  --plan                     Show route plan only (no browser launch)
+  --explain-routing          Include route explanation in output`);
   process.exit(exitCode);
 }
 
@@ -57,10 +46,7 @@ if (args.length === 0) {
 }
 
 const opts = {
-  engine: null,
   maxChars: null,
-  render: false,
-  renderPolicy: null,
   renderBudgetMs: null,
   renderWaitUntil: null,
   json: false,
@@ -74,22 +60,8 @@ for (let i = 0; i < args.length; i++) {
   if (arg === "-h" || arg === "--help") {
     usage(0);
   }
-  if (arg === "--engine") {
-    opts.engine = readOptionValue(args, i, "--engine");
-    i++;
-    continue;
-  }
   if (arg === "--max-chars") {
     opts.maxChars = Number.parseInt(readOptionValue(args, i, "--max-chars"), 10);
-    i++;
-    continue;
-  }
-  if (arg === "--render") {
-    opts.render = true;
-    continue;
-  }
-  if (arg === "--render-policy") {
-    opts.renderPolicy = readOptionValue(args, i, "--render-policy");
     i++;
     continue;
   }
@@ -125,9 +97,6 @@ for (let i = 0; i < args.length; i++) {
 if (urls.length === 0) {
   fail("No URLs provided");
 }
-if (opts.engine && !EXTRACT_ENGINES.has(opts.engine)) {
-  fail(`Unknown extract engine: ${opts.engine}. Available: tavily, exa, fetch`);
-}
 if (opts.maxChars !== null && (!Number.isInteger(opts.maxChars) || opts.maxChars < 100)) {
   fail("--max-chars must be an integer >= 100");
 }
@@ -140,26 +109,16 @@ if (
 
 const cwd = process.cwd();
 const env = process.env;
-const renderOverrides =
-  opts.render ||
-  opts.engine === "render" ||
-  opts.renderPolicy !== null ||
-  opts.renderBudgetMs !== null ||
-  opts.renderWaitUntil !== null
-    ? {
-        render: {
-          enabled: true,
-          ...(opts.engine === "render" ? { policy: "force" } : {}),
-          ...(opts.renderPolicy !== null ? { policy: opts.renderPolicy } : {}),
-          ...(opts.renderBudgetMs !== null ? { budgetMs: opts.renderBudgetMs } : {}),
-          ...(opts.renderWaitUntil !== null ? { waitUntil: opts.renderWaitUntil } : {}),
-        },
-      }
-    : {};
 const { config } = loadRuntimeConfig({
   cwd,
   env,
   overrides: {
+    render: {
+      enabled: true,
+      policy: "force",
+      ...(opts.renderBudgetMs !== null ? { budgetMs: opts.renderBudgetMs } : {}),
+      ...(opts.renderWaitUntil ? { waitUntil: opts.renderWaitUntil } : {}),
+    },
     ...(opts.maxChars !== null
       ? {
           fetch: {
@@ -167,13 +126,12 @@ const { config } = loadRuntimeConfig({
           },
         }
       : {}),
-    ...renderOverrides,
   },
 });
 const healthState = await loadHealthState({ cwd, config });
 const plan = planExtractRoute(
   {
-    engine: opts.engine,
+    engine: "render",
     urls,
     maxChars: config.fetch.maxChars,
   },
@@ -181,7 +139,6 @@ const plan = planExtractRoute(
     env,
     config,
     healthState,
-    now: Date.now(),
   },
 );
 
@@ -190,7 +147,7 @@ if (opts.plan) {
     console.log(
       JSON.stringify(
         buildPlanOutput({
-          command: "extract",
+          command: "render",
           plan,
           meta: {
             count: 0,
@@ -207,22 +164,19 @@ if (opts.plan) {
 }
 
 try {
-  requireSelectedRoute(plan);
+  const selected = requireSelectedRoute(plan);
   const cacheKey = buildExtractCacheKey({
-    command: "extract",
-    providerId: plan.selected.provider.id,
+    command: "render",
+    providerId: selected.provider.id,
     urls,
     maxChars: config.fetch.maxChars,
-    render:
-      config.render.enabled && config.render.policy !== "off"
-        ? {
-            policy: config.render.policy,
-            budgetMs: config.render.budgetMs,
-            waitUntil: config.render.waitUntil,
-            blockTypes: config.render.blockTypes,
-            sameOriginOnly: config.render.sameOriginOnly,
-          }
-        : null,
+    render: {
+      policy: config.render.policy,
+      budgetMs: config.render.budgetMs,
+      waitUntil: config.render.waitUntil,
+      blockTypes: config.render.blockTypes,
+      sameOriginOnly: config.render.sameOriginOnly,
+    },
   });
   const cached = await readCacheEntry("extract", cacheKey, { cwd, config });
 
@@ -236,22 +190,18 @@ try {
     process.exit(0);
   }
 
-  const execution = await executeExtractFlow({
-    urls,
-    plan,
-    config,
+  const providerResult = await selected.provider.adapter.extract(urls, {
+    maxChars: config.fetch.maxChars,
+    render: config.render,
   });
-  await recordProviderOutcomes(execution.outcomes, {
-    cwd,
-    config,
-    now: Date.now(),
-  });
+  await recordProviderSuccess(selected.provider.id, { cwd, config, now: Date.now() });
 
   const cachedPayload = buildExtractOutput({
-    providerResult: execution.providerResult,
+    command: "render",
+    providerResult,
     plan,
     includeRouting: false,
-    render: execution.providerResult.render ?? null,
+    render: providerResult.render ?? null,
   });
   await writeCacheEntry("extract", cacheKey, cachedPayload, {
     cwd,
@@ -269,14 +219,7 @@ try {
     console.log(formatExtractMarkdown(payload));
   }
 } catch (error) {
-  const outcomes = error.providerOutcomes ?? [];
-  if (outcomes.length > 0) {
-    await recordProviderOutcomes(outcomes, {
-      cwd,
-      config,
-      now: Date.now(),
-    });
-  } else if (plan.selected) {
+  if (plan.selected) {
     await recordProviderFailure(plan.selected.provider.id, error, {
       cwd,
       config,

@@ -1,0 +1,29 @@
+{
+  "id": "research-product-latest-plan",
+  "suite": "research",
+  "description": "Product topics with a latest signal should surface recent-change without dropping product context.",
+  "intent": "research",
+  "tags": ["product", "latest", "plan"],
+  "command": {
+    "name": "research",
+    "argv": ["OpenClaw product latest updates", "--plan", "--json"]
+  },
+  "constraints": {
+    "requiresNetwork": false
+  },
+  "expectedSignals": {
+    "exitCode": 0,
+    "topicTypeIn": ["latest"],
+    "topicSignalsIncludeAll": ["product", "latest"],
+    "researchAxesIncludeAll": ["baseline-context", "recent-change", "official-proof", "competitive-gap"],
+    "subquestionIntentsIncludeAll": ["overview", "latest", "official-sources", "comparison"],
+    "taskKindsIncludeAll": ["search"]
+  },
+  "scoring": {
+    "threshold": 1,
+    "weights": {
+      "decomposition": 0.6,
+      "planning": 0.4
+    }
+  }
+}

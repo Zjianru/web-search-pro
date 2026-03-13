@@ -1,0 +1,29 @@
+{
+  "id": "search-baidu-serpapi",
+  "suite": "core",
+  "description": "SerpAPI Baidu route remains available for localized Chinese search.",
+  "intent": "localized",
+  "tags": ["premium", "localized", "baidu"],
+  "command": {
+    "name": "search",
+    "argv": ["开源技能平台", "--engine", "serpapi", "--search-engine", "baidu"]
+  },
+  "constraints": {
+    "requiresNetwork": true,
+    "requiredEnvAll": ["SERPAPI_API_KEY"]
+  },
+  "expectedSignals": {
+    "exitCode": 0,
+    "selectedProviderIn": ["serpapi"],
+    "minResults": 1,
+    "maxFailed": 0
+  },
+  "scoring": {
+    "threshold": 0.8,
+    "weights": {
+      "routing": 0.5,
+      "coverage": 0.3,
+      "safety": 0.2
+    }
+  }
+}

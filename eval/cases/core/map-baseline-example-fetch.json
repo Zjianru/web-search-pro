@@ -1,0 +1,31 @@
+{
+  "id": "map-baseline-example-fetch",
+  "suite": "core",
+  "description": "Baseline map returns at least the entry node for a stable public page.",
+  "intent": "map",
+  "tags": ["baseline", "map"],
+  "command": {
+    "name": "map",
+    "argv": ["https://example.com", "--depth", "1", "--max-pages", "10"]
+  },
+  "constraints": {
+    "requiresNetwork": true
+  },
+  "expectedSignals": {
+    "exitCode": 0,
+    "selectedProviderIn": ["fetch"],
+    "minNodes": 1,
+    "minDistinctUrls": 1,
+    "maxFailed": 0,
+    "expectMaxPagesReached": false
+  },
+  "scoring": {
+    "threshold": 0.8,
+    "weights": {
+      "routing": 0.2,
+      "coverage": 0.4,
+      "citation": 0.2,
+      "safety": 0.2
+    }
+  }
+}

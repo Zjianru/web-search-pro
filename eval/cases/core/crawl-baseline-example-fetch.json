@@ -1,0 +1,30 @@
+{
+  "id": "crawl-baseline-example-fetch",
+  "suite": "core",
+  "description": "Baseline crawl returns readable content for a stable public page.",
+  "intent": "crawl",
+  "tags": ["baseline", "crawl"],
+  "command": {
+    "name": "crawl",
+    "argv": ["https://example.com", "--depth", "1", "--max-pages", "5"]
+  },
+  "constraints": {
+    "requiresNetwork": true
+  },
+  "expectedSignals": {
+    "exitCode": 0,
+    "selectedProviderIn": ["fetch"],
+    "minResults": 1,
+    "mustContainTextAny": ["Example Domain"],
+    "maxFailed": 0,
+    "expectMaxPagesReached": false
+  },
+  "scoring": {
+    "threshold": 0.8,
+    "weights": {
+      "routing": 0.2,
+      "coverage": 0.5,
+      "safety": 0.3
+    }
+  }
+}

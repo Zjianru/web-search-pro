@@ -1,0 +1,27 @@
+{
+  "id": "research-site-structure-plan",
+  "suite": "research",
+  "description": "Site-structure topics should plan extract and map even when search is budgeted to zero.",
+  "intent": "research",
+  "tags": ["site-structure", "plan"],
+  "command": {
+    "name": "research",
+    "argv": ["OpenClaw documentation sitemap", "--seed-url", "https://example.com/docs", "--max-searches", "0", "--plan", "--json"]
+  },
+  "constraints": {
+    "requiresNetwork": false
+  },
+  "expectedSignals": {
+    "exitCode": 0,
+    "topicTypeIn": ["docs"],
+    "subquestionIntentsIncludeAll": ["overview", "official-sources", "site-structure", "comparison"],
+    "taskKindsIncludeAll": ["extract", "map"]
+  },
+  "scoring": {
+    "threshold": 1,
+    "weights": {
+      "decomposition": 0.4,
+      "planning": 0.6
+    }
+  }
+}

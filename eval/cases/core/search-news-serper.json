@@ -1,0 +1,29 @@
+{
+  "id": "search-news-serper",
+  "suite": "core",
+  "description": "Serper news route returns recent results when Google News coverage is available.",
+  "intent": "news",
+  "tags": ["premium", "news"],
+  "command": {
+    "name": "search",
+    "argv": ["OpenAI latest news", "--engine", "serper", "--news"]
+  },
+  "constraints": {
+    "requiresNetwork": true,
+    "requiredEnvAll": ["SERPER_API_KEY"]
+  },
+  "expectedSignals": {
+    "exitCode": 0,
+    "selectedProviderIn": ["serper"],
+    "minResults": 1,
+    "maxFailed": 0
+  },
+  "scoring": {
+    "threshold": 0.8,
+    "weights": {
+      "routing": 0.4,
+      "coverage": 0.4,
+      "safety": 0.2
+    }
+  }
+}

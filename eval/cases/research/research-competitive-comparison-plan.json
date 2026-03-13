@@ -1,0 +1,27 @@
+{
+  "id": "research-competitive-comparison-plan",
+  "suite": "research",
+  "description": "Comparison topics should keep STORM-style decomposition in plan mode.",
+  "intent": "research",
+  "tags": ["comparison", "plan"],
+  "command": {
+    "name": "research",
+    "argv": ["OpenClaw vs Firecrawl comparison", "--plan", "--json"]
+  },
+  "constraints": {
+    "requiresNetwork": false
+  },
+  "expectedSignals": {
+    "exitCode": 0,
+    "topicTypeIn": ["comparison"],
+    "subquestionIntentsIncludeAll": ["overview", "latest", "official-sources", "comparison"],
+    "taskKindsIncludeAll": ["search"]
+  },
+  "scoring": {
+    "threshold": 1,
+    "weights": {
+      "decomposition": 0.55,
+      "planning": 0.45
+    }
+  }
+}

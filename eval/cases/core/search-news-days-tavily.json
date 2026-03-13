@@ -1,0 +1,29 @@
+{
+  "id": "search-news-days-tavily",
+  "suite": "core",
+  "description": "Tavily-specific news+days route remains healthy and explicit.",
+  "intent": "news",
+  "tags": ["premium", "news"],
+  "command": {
+    "name": "search",
+    "argv": ["OpenAI latest news", "--engine", "tavily", "--news", "--days", "7"]
+  },
+  "constraints": {
+    "requiresNetwork": true,
+    "requiredEnvAll": ["TAVILY_API_KEY"]
+  },
+  "expectedSignals": {
+    "exitCode": 0,
+    "selectedProviderIn": ["tavily"],
+    "minResults": 1,
+    "maxFailed": 0
+  },
+  "scoring": {
+    "threshold": 0.8,
+    "weights": {
+      "routing": 0.4,
+      "coverage": 0.4,
+      "safety": 0.2
+    }
+  }
+}

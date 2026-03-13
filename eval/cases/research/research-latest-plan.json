@@ -1,0 +1,27 @@
+{
+  "id": "research-latest-plan",
+  "suite": "research",
+  "description": "Latest-oriented topics should keep a recent-updates subquestion in the research plan.",
+  "intent": "research",
+  "tags": ["latest", "plan"],
+  "command": {
+    "name": "research",
+    "argv": ["OpenClaw latest product updates", "--plan", "--json"]
+  },
+  "constraints": {
+    "requiresNetwork": false
+  },
+  "expectedSignals": {
+    "exitCode": 0,
+    "topicTypeIn": ["latest"],
+    "subquestionIntentsIncludeAll": ["overview", "latest", "official-sources", "comparison"],
+    "taskKindsIncludeAll": ["search"]
+  },
+  "scoring": {
+    "threshold": 1,
+    "weights": {
+      "decomposition": 0.55,
+      "planning": 0.45
+    }
+  }
+}

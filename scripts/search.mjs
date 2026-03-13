@@ -1,17 +1,33 @@
 #!/usr/bin/env node
 
-// web-search-pro: Unified multi-engine search with full parameter support
-// Engines: Tavily, Exa, Serper, SerpAPI
-// Priority: Tavily > Exa > Serper > SerpAPI (auto-select based on query + available keys)
+import {
+  fail,
+  parseDomainList,
+  readOptionValue,
+  validateDateStr,
+} from "./lib/cli-utils.mjs";
+import { buildSearchCacheKey, readCacheEntry, writeCacheEntry } from "./lib/cache.mjs";
+import { loadRuntimeConfig } from "./lib/config.mjs";
+import { executeFederatedSearch } from "./lib/federated-search.mjs";
+import {
+  loadHealthState,
+  recordProviderFailure,
+  recordProviderOutcomes,
+} from "./lib/health-state.mjs";
+import {
+  buildPlanOutput,
+  buildSearchOutput,
+  formatSearchMarkdown,
+} from "./lib/output.mjs";
+import {
+  formatPlanMarkdown,
+  planSearchRoute,
+  requireSelectedRoute,
+  serializePlan,
+} from "./lib/planner.mjs";
 
-import * as tavily from "./engines/tavily.mjs";
-import * as exa from "./engines/exa.mjs";
-import * as serper from "./engines/serper.mjs";
-import * as serpapi from "./engines/serpapi.mjs";
-
-const ENGINES = { tavily, exa, serper, serpapi };
-const ENGINE_LIST = [tavily, exa, serper, serpapi]; // default priority order
 const SEARCH_ENGINES = new Set(["google", "bing", "baidu", "yandex", "duckduckgo"]);
+const ENGINE_NAMES = new Set(["tavily", "exa", "serper", "serpapi", "ddg"]);
 
 function usage(exitCode = 2) {
   console.error(`web-search-pro — Multi-engine AI search with full parameter control
@@ -20,7 +36,7 @@ Usage:
   search.mjs "query" [options]
 
 Options:
-  --engine <name>           Force engine: tavily|exa|serper|serpapi (default: auto)
+  --engine <name>           Force engine: tavily|exa|serper|serpapi|ddg (default: auto)
   -n <count>                Number of results (default: 5)
   --deep                    Deep/advanced search mode (Tavily/Exa only)
   --news                    News search mode (Tavily/Serper/SerpAPI only)
@@ -33,49 +49,66 @@ Options:
   --search-engine <name>    SerpAPI sub-engine: google|bing|baidu|yandex|duckduckgo
   --country <code>          Country code (e.g., us, cn, de)
   --lang <code>             Language code (e.g., en, zh, de)
-  --json                    Output raw JSON instead of Markdown
+  --json                    Output stable JSON schema
+  --plan                    Show route plan only (no provider API call)
+  --explain-routing         Include route explanation in output
 
-Environment variables (configure at least one):
-  TAVILY_API_KEY            Tavily API key (recommended, AI-optimized)
-  EXA_API_KEY               Exa API key (semantic search)
-  SERPER_API_KEY            Serper API key (Google SERP)
-  SERPAPI_API_KEY           SerpAPI key (multi-engine)`);
+Environment variables:
+  WEB_SEARCH_PRO_CONFIG     Optional path to config.json
+  TAVILY_API_KEY            Tavily API key
+  EXA_API_KEY               Exa API key
+  SERPER_API_KEY            Serper API key
+  SERPAPI_API_KEY           SerpAPI key`);
   process.exit(exitCode);
 }
 
-function fail(message, exitCode = 2) {
-  console.error(message);
-  process.exit(exitCode);
-}
-
-function parseDomainList(rawValue, optionName) {
-  const values = rawValue
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-  if (!values.length) {
-    fail(`${optionName} expects at least one domain`);
+function validateOptions(options) {
+  if (options.engine && !ENGINE_NAMES.has(options.engine)) {
+    fail(`Unknown engine: ${options.engine}. Available: tavily, exa, serper, serpapi, ddg`);
   }
-  return values;
-}
-
-function validateDateStr(rawValue, optionName) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(rawValue)) {
-    fail(`${optionName} must be in YYYY-MM-DD format`);
+  if (!Number.isInteger(options.count) || options.count < 1) {
+    fail("-n must be a positive integer");
+  }
+  if (options.days !== null && (!Number.isInteger(options.days) || options.days < 1)) {
+    fail("--days must be a positive integer");
+  }
+  if (options.days !== null && !options.news) {
+    fail("--days can only be used with --news");
+  }
+  if (options.timeRange) {
+    const validRanges = new Set(["day", "week", "month", "year"]);
+    if (!validRanges.has(options.timeRange)) {
+      fail("--time-range must be one of: day, week, month, year");
+    }
+  }
+  if (options.fromDate) {
+    validateDateStr(options.fromDate, "--from");
+  }
+  if (options.toDate) {
+    validateDateStr(options.toDate, "--to");
+  }
+  if (options.fromDate && options.toDate && options.fromDate > options.toDate) {
+    fail("--from must be earlier than or equal to --to");
+  }
+  if (options.searchEngine && !SEARCH_ENGINES.has(options.searchEngine)) {
+    fail("--search-engine must be one of: google, bing, baidu, yandex, duckduckgo");
+  }
+  if (options.searchEngine && options.engine && options.engine !== "serpapi") {
+    fail("--search-engine can only be used with --engine serpapi");
+  }
+  if (
+    (options.country || options.lang) &&
+    options.engine &&
+    !["serper", "serpapi"].includes(options.engine)
+  ) {
+    fail("--country/--lang can only be used with --engine serper or --engine serpapi");
   }
 }
 
-function readOptionValue(args, i, optionName) {
-  const value = args[i + 1];
-  if (value === undefined || value === "") {
-    fail(`Missing value for ${optionName}`);
-  }
-  return value;
-}
-
-// Parse arguments
 const args = process.argv.slice(2);
-if (args.length === 0) usage();
+if (args.length === 0) {
+  usage();
+}
 
 const opts = {
   engine: null,
@@ -92,90 +125,89 @@ const opts = {
   country: null,
   lang: null,
   json: false,
+  plan: false,
+  explainRouting: false,
 };
-
 const positionals = [];
-for (let i = 0; i < args.length; i++) {
-  const a = args[i];
 
-  if (a === "-h" || a === "--help") {
+for (let i = 0; i < args.length; i++) {
+  const arg = args[i];
+
+  if (arg === "-h" || arg === "--help") {
     usage(0);
   }
 
-  switch (a) {
-    case "--engine": {
+  switch (arg) {
+    case "--engine":
       opts.engine = readOptionValue(args, i, "--engine");
       i++;
       break;
-    }
-    case "-n": {
-      const raw = readOptionValue(args, i, "-n");
-      opts.count = Number.parseInt(raw, 10);
+    case "-n":
+      opts.count = Number.parseInt(readOptionValue(args, i, "-n"), 10);
       i++;
       break;
-    }
     case "--deep":
       opts.deep = true;
       break;
     case "--news":
       opts.news = true;
       break;
-    case "--days": {
-      const raw = readOptionValue(args, i, "--days");
-      opts.days = Number.parseInt(raw, 10);
+    case "--days":
+      opts.days = Number.parseInt(readOptionValue(args, i, "--days"), 10);
       i++;
       break;
-    }
-    case "--include-domains": {
-      const raw = readOptionValue(args, i, "--include-domains");
-      opts.includeDomains = parseDomainList(raw, "--include-domains");
+    case "--include-domains":
+      opts.includeDomains = parseDomainList(
+        readOptionValue(args, i, "--include-domains"),
+        "--include-domains",
+      );
       i++;
       break;
-    }
-    case "--exclude-domains": {
-      const raw = readOptionValue(args, i, "--exclude-domains");
-      opts.excludeDomains = parseDomainList(raw, "--exclude-domains");
+    case "--exclude-domains":
+      opts.excludeDomains = parseDomainList(
+        readOptionValue(args, i, "--exclude-domains"),
+        "--exclude-domains",
+      );
       i++;
       break;
-    }
-    case "--time-range": {
+    case "--time-range":
       opts.timeRange = readOptionValue(args, i, "--time-range");
       i++;
       break;
-    }
-    case "--from": {
+    case "--from":
       opts.fromDate = readOptionValue(args, i, "--from");
       i++;
       break;
-    }
-    case "--to": {
+    case "--to":
       opts.toDate = readOptionValue(args, i, "--to");
       i++;
       break;
-    }
-    case "--search-engine": {
+    case "--search-engine":
       opts.searchEngine = readOptionValue(args, i, "--search-engine");
       i++;
       break;
-    }
-    case "--country": {
+    case "--country":
       opts.country = readOptionValue(args, i, "--country");
       i++;
       break;
-    }
-    case "--lang": {
+    case "--lang":
       opts.lang = readOptionValue(args, i, "--lang");
       i++;
       break;
-    }
     case "--json":
       opts.json = true;
       break;
+    case "--plan":
+      opts.plan = true;
+      break;
+    case "--explain-routing":
+      opts.explainRouting = true;
+      break;
     default:
-      if (a.startsWith("-")) {
-        fail(`Unknown option: ${a}`);
+      if (arg.startsWith("-")) {
+        fail(`Unknown option: ${arg}`);
       }
-      positionals.push(a);
+      positionals.push(arg);
   }
 }
 
@@ -184,162 +216,123 @@ if (!query) {
   fail('Missing query. Usage: search.mjs "query" [options]');
 }
 
-function validateOptions(opts) {
-  if (!Number.isInteger(opts.count) || opts.count < 1) {
-    fail("-n must be a positive integer");
-  }
-
-  if (opts.days !== null && (!Number.isInteger(opts.days) || opts.days < 1)) {
-    fail("--days must be a positive integer");
-  }
-
-  if (opts.days !== null && !opts.news) {
-    fail("--days can only be used with --news");
-  }
-
-  if (opts.timeRange) {
-    const validRanges = new Set(["day", "week", "month", "year"]);
-    if (!validRanges.has(opts.timeRange)) {
-      fail("--time-range must be one of: day, week, month, year");
-    }
-  }
-
-  if (opts.fromDate) validateDateStr(opts.fromDate, "--from");
-  if (opts.toDate) validateDateStr(opts.toDate, "--to");
-  if (opts.fromDate && opts.toDate && opts.fromDate > opts.toDate) {
-    fail("--from must be earlier than or equal to --to");
-  }
-
-  if (opts.searchEngine && !SEARCH_ENGINES.has(opts.searchEngine)) {
-    fail("--search-engine must be one of: google, bing, baidu, yandex, duckduckgo");
-  }
-
-  if (opts.searchEngine && opts.engine && opts.engine !== "serpapi") {
-    fail("--search-engine can only be used with --engine serpapi");
-  }
-}
-
 validateOptions(opts);
 
-function validateEngineCapabilities(engineName, opts) {
-  const supportsDeep = engineName === "tavily" || engineName === "exa";
-  const supportsNews = engineName === "tavily" || engineName === "serper" || engineName === "serpapi";
+const cwd = process.cwd();
+const env = process.env;
+const { config } = loadRuntimeConfig({ cwd, env });
+const healthState = await loadHealthState({ cwd, config });
+const plan = planSearchRoute(
+  {
+    ...opts,
+    query,
+    mode: "search",
+  },
+  {
+    env,
+    config,
+    healthState,
+    now: Date.now(),
+  },
+);
 
-  if (opts.deep && !supportsDeep) {
-    fail(`Engine ${engineName} does not support --deep`);
+if (opts.plan) {
+  if (opts.json) {
+    console.log(
+      JSON.stringify(
+        buildPlanOutput({
+          command: "search",
+          plan,
+          meta: {
+            query,
+            count: 0,
+            answer: null,
+          },
+        }),
+        null,
+        2,
+      ),
+    );
+  } else {
+    console.log(formatPlanMarkdown(plan));
   }
-
-  if (opts.news && !supportsNews) {
-    fail(`Engine ${engineName} does not support --news`);
-  }
-
-  if (opts.days !== null && engineName !== "tavily") {
-    fail("--days is only supported with Tavily news mode (use --engine tavily)");
-  }
-
-  if (opts.searchEngine && engineName !== "serpapi") {
-    fail("--search-engine is only supported by SerpAPI");
-  }
+  process.exit(plan.selected ? 0 : 1);
 }
 
-// Engine selection logic
-function selectEngine(opts) {
-  // Explicit engine choice
-  if (opts.engine) {
-    const eng = ENGINES[opts.engine];
-    if (!eng) {
-      fail(`Unknown engine: ${opts.engine}. Available: ${Object.keys(ENGINES).join(", ")}`, 1);
-    }
-    if (!eng.isAvailable()) {
-      fail(`Engine ${opts.engine} selected but API key not configured.`, 1);
-    }
-    return eng;
-  }
-
-  // SerpAPI sub-engine requested -> force SerpAPI (including google)
-  if (opts.searchEngine) {
-    if (serpapi.isAvailable()) return serpapi;
-    fail(`--search-engine ${opts.searchEngine} requires SERPAPI_API_KEY`, 1);
-  }
-
-  // News + days requires Tavily
-  if (opts.news && opts.days !== null) {
-    if (tavily.isAvailable()) return tavily;
-    fail("--news --days requires TAVILY_API_KEY", 1);
-  }
-
-  // News search
-  if (opts.news) {
-    if (serper.isAvailable()) return serper;
-    if (tavily.isAvailable()) return tavily;
-    if (serpapi.isAvailable()) return serpapi;
-    fail("--news requires SERPER_API_KEY, TAVILY_API_KEY, or SERPAPI_API_KEY", 1);
-  }
-
-  // Deep search
-  if (opts.deep) {
-    if (tavily.isAvailable()) return tavily;
-    if (exa.isAvailable()) return exa;
-    fail("--deep requires TAVILY_API_KEY or EXA_API_KEY", 1);
-  }
-
-  // Domain filtering -> prefer Tavily/Exa (native support), then fallback engines
-  if (opts.includeDomains?.length || opts.excludeDomains?.length) {
-    if (tavily.isAvailable()) return tavily;
-    if (exa.isAvailable()) return exa;
-  }
-
-  // Default priority: Tavily > Exa > Serper > SerpAPI
-  for (const eng of ENGINE_LIST) {
-    if (eng.isAvailable()) return eng;
-  }
-
-  fail("No search engine configured. Set at least one API key:\n  TAVILY_API_KEY, EXA_API_KEY, SERPER_API_KEY, or SERPAPI_API_KEY", 1);
-}
-
-// Format output
-function formatMarkdown(result, query) {
-  const lines = [];
-  const results = Array.isArray(result.results) ? result.results : [];
-
-  lines.push(`## Search: ${query}`);
-  lines.push(`**Engine**: ${result.engine}\n`);
-
-  if (result.answer) {
-    lines.push("### Answer\n");
-    lines.push(result.answer);
-    lines.push("\n---\n");
-  }
-
-  lines.push(`### Results (${results.length})\n`);
-  for (const r of results) {
-    const score = Number.isFinite(r.score) ? ` (${(r.score * 100).toFixed(0)}%)` : "";
-    const published = typeof r.publishedDate === "string" ? r.publishedDate.slice(0, 10) : null;
-    const date = r.date ? ` [${r.date}]` : published ? ` [${published}]` : "";
-    const title = r.title || "(untitled)";
-    lines.push(`- **${title}**${score}${date}`);
-    lines.push(`  ${r.url || ""}`);
-    if (r.content) {
-      lines.push(`  ${r.content.slice(0, 400)}${r.content.length > 400 ? "..." : ""}`);
-    }
-    lines.push("");
-  }
-  return lines.join("\n");
-}
-
-// Main
 try {
-  const engine = selectEngine(opts);
-  validateEngineCapabilities(engine.name(), opts);
+  const selected = requireSelectedRoute(plan);
+  const cacheKey = buildSearchCacheKey({
+    providerId: selected.provider.id,
+    request: {
+      ...plan.request,
+      query,
+    },
+    federation: plan.federation,
+  });
+  const cached = await readCacheEntry("search", cacheKey, { cwd, config });
 
-  const result = await engine.search(query, opts);
+  if (cached) {
+    const payload = opts.explainRouting ? { ...cached, routing: serializePlan(plan) } : cached;
+    if (opts.json) {
+      console.log(JSON.stringify(payload, null, 2));
+    } else {
+      console.log(formatSearchMarkdown(payload));
+    }
+    process.exit(0);
+  }
+
+  const execution = await executeFederatedSearch({
+    query,
+    request: {
+      ...plan.request,
+      query,
+    },
+    plan,
+    config,
+  });
+
+  await recordProviderOutcomes(execution.providerOutcomes ?? [], {
+    cwd,
+    config,
+    now: Date.now(),
+  });
+
+  const cachedPayload = buildSearchOutput({
+    query,
+    providerResult: execution.result,
+    plan,
+    federation: execution.federation,
+    includeRouting: false,
+  });
+  await writeCacheEntry("search", cacheKey, cachedPayload, {
+    cwd,
+    config,
+    ttlSeconds: config.cache.searchTtlSeconds,
+    now: Date.now(),
+  });
+  const payload = opts.explainRouting
+    ? { ...cachedPayload, routing: serializePlan(plan) }
+    : cachedPayload;
 
   if (opts.json) {
-    console.log(JSON.stringify(result, null, 2));
+    console.log(JSON.stringify(payload, null, 2));
   } else {
-    console.log(formatMarkdown(result, query));
+    console.log(formatSearchMarkdown(payload));
   }
-} catch (err) {
-  console.error(`Error: ${err.message}`);
+} catch (error) {
+  if (error.providerOutcomes?.length) {
+    await recordProviderOutcomes(error.providerOutcomes, {
+      cwd,
+      config,
+      now: Date.now(),
+    });
+  } else if (plan.selected) {
+    await recordProviderFailure(plan.selected.provider.id, error, {
+      cwd,
+      config,
+      now: Date.now(),
+    });
+  }
+  console.error(`Error: ${error.message}`);
   process.exit(1);
 }

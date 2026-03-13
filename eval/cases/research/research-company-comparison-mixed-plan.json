@@ -1,0 +1,29 @@
+{
+  "id": "research-company-comparison-mixed-plan",
+  "suite": "research",
+  "description": "Mixed company and comparison topics should keep comparison as the primary type without losing company signals.",
+  "intent": "research",
+  "tags": ["company", "comparison", "plan"],
+  "command": {
+    "name": "research",
+    "argv": ["OpenAI company vs Anthropic comparison", "--plan", "--json"]
+  },
+  "constraints": {
+    "requiresNetwork": false
+  },
+  "expectedSignals": {
+    "exitCode": 0,
+    "topicTypeIn": ["comparison"],
+    "topicSignalsIncludeAll": ["company", "comparison"],
+    "researchAxesIncludeAll": ["baseline-context", "recent-change", "official-proof", "competitive-gap"],
+    "subquestionIntentsIncludeAll": ["overview", "latest", "official-sources", "comparison"],
+    "taskKindsIncludeAll": ["search"]
+  },
+  "scoring": {
+    "threshold": 1,
+    "weights": {
+      "decomposition": 0.6,
+      "planning": 0.4
+    }
+  }
+}
