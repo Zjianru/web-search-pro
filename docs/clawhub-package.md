@@ -102,6 +102,8 @@ The publish package must satisfy these rules:
 Current hardening choices for the ClawHub package:
 
 - publish `metadata.clawdbot` alongside compatibility `metadata.openclaw`
+- declare the code-backed Node install model explicitly
+- declare the optional `config.json` read path and `.cache/web-search-pro` state directory
 - disclose optional provider env vars without claiming they are all mandatory
 - keep the no-key baseline real
 - avoid Python helper transports in the shipped runtime path

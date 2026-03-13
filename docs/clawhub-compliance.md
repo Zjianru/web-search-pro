@@ -55,6 +55,11 @@ Reason:
 The generated ClawHub package adds `metadata.clawdbot` alongside compatibility
 `metadata.openclaw` so registry review can see the package as a code-backed Node runtime skill
 instead of an instruction-only artifact.
+It now also declares:
+
+- the direct Node install model for the bundled skill pack
+- the optional `config.json` read path
+- the `.cache/web-search-pro` state directory used for cache and health snapshots
 
 ## Credential Disclosure
 

@@ -313,6 +313,15 @@ node scripts/search.mjs "OpenAI Responses API docs" --preset docs --plan --json
 node scripts/extract.mjs "https://platform.openai.com/docs" --json
 \`\`\`
 
+## Install Model
+
+ClawHub installs this bundle directly as a code-backed Node skill pack.
+
+- hard runtime requirement: \`node\`
+- no remote installer, curl-to-shell bootstrap, or Python helper transport in the baseline path
+- optional runtime config file: \`config.json\`
+- local state directory: \`.cache/web-search-pro\`
+
 ## Why Federated Search Matters
 
 Federation is not just "more providers". It exposes compact gain metrics:
@@ -415,6 +424,7 @@ Full source:
 function buildClawhubSkillMarkdown() {
   const optionalRuntimeDisclosure = {
     bins: ["node"],
+    config: ["config.json"],
     env: OPTIONAL_ENV_DISCLOSURE,
     note: "No API key is required for the baseline. Optional provider credentials or endpoints widen retrieval coverage.",
   };
@@ -425,7 +435,26 @@ function buildClawhubSkillMarkdown() {
     },
     clawdbot: {
       emoji: "🔎",
-      requires: optionalRuntimeDisclosure,
+      requires: {
+        bins: ["node"],
+        config: ["config.json"],
+        note: optionalRuntimeDisclosure.note,
+      },
+      install: [
+        {
+          kind: "node",
+          label: "Bundled Node skill runtime",
+          bins: ["node"],
+        },
+      ],
+      config: {
+        stateDirs: [".cache/web-search-pro"],
+        example: `{
+  env = {
+    WEB_SEARCH_PRO_CONFIG = "./config.json";
+  };
+}`,
+      },
       cliHelp: "node {baseDir}/scripts/search.mjs --help",
     },
   };
@@ -499,6 +528,15 @@ node {baseDir}/scripts/search.mjs "OpenClaw web search" --json
 node {baseDir}/scripts/search.mjs "OpenAI Responses API docs" --preset docs --plan --json
 node {baseDir}/scripts/extract.mjs "https://platform.openai.com/docs" --json
 \`\`\`
+
+## Install Model
+
+ClawHub installs this bundle directly as a code-backed Node skill pack.
+
+- hard runtime requirement: \`node\`
+- no remote installer, curl-to-shell bootstrap, or Python helper transport in the baseline path
+- optional runtime config file: \`config.json\`
+- local state directory: \`.cache/web-search-pro\`
 
 ## Why Federated Search Matters
 

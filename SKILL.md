@@ -6,7 +6,7 @@ description: |
   Includes a real no-key baseline plus optional Tavily, Exa, Querit, Serper, Brave, SerpAPI,
   You.com, SearXNG, and Perplexity / Sonar providers for wider coverage and answer-first routing.
 homepage: https://github.com/Zjianru/web-search-pro
-metadata: {"openclaw":{"emoji":"🔎","requires":{"bins":["node"]}},"clawdbot":{"emoji":"🔎","requires":{"bins":["node"]},"cliHelp":"node {baseDir}/scripts/search.mjs --help"}}
+metadata: {"openclaw":{"emoji":"🔎","requires":{"bins":["node"]}},"clawdbot":{"emoji":"🔎","requires":{"bins":["node"],"config":["config.json"]},"install":[{"kind":"node","label":"Bundled Node skill runtime","bins":["node"]}],"config":{"stateDirs":[".cache/web-search-pro"],"example":"{\\n  env = {\\n    WEB_SEARCH_PRO_CONFIG = \\\"./config.json\\\";\\n  };\\n}"},"cliHelp":"node {baseDir}/scripts/search.mjs --help"}}
 ---
 
 # Web Search Pro 2.1
@@ -73,6 +73,15 @@ node {baseDir}/scripts/search.mjs "OpenClaw web search" --json
 node {baseDir}/scripts/search.mjs "OpenAI Responses API docs" --preset docs --plan --json
 node {baseDir}/scripts/extract.mjs "https://platform.openai.com/docs" --json
 ```
+
+## Install Model
+
+ClawHub installs this bundle directly as a code-backed Node skill pack.
+
+- hard runtime requirement: `node`
+- no remote installer, curl-to-shell bootstrap, or Python helper transport in the baseline path
+- optional runtime config file: `config.json`
+- local state directory: `.cache/web-search-pro`
 
 ### Then try docs, news, and research
 

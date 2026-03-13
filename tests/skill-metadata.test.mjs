@@ -23,9 +23,16 @@ test("skill metadata does not overstate credential requirements", () => {
   assert.deepEqual(openclaw.requires?.env ?? [], []);
 
   assert.deepEqual(clawdbot.requires?.bins ?? [], ["node"]);
+  assert.deepEqual(clawdbot.requires?.config ?? [], ["config.json"]);
   assert.deepEqual(clawdbot.requires?.env ?? [], []);
+  assert.equal(Array.isArray(clawdbot.install), true);
+  assert.deepEqual(clawdbot.install?.[0]?.bins ?? [], ["node"]);
+  assert.equal(clawdbot.install?.[0]?.kind, "node");
   assert.equal(typeof clawdbot.cliHelp, "string");
   assert.match(clawdbot.cliHelp, /search\.mjs --help/);
+  assert.deepEqual(clawdbot.config?.stateDirs ?? [], [".cache/web-search-pro"]);
+  assert.equal(typeof clawdbot.config?.example, "string");
+  assert.match(clawdbot.config.example, /WEB_SEARCH_PRO_CONFIG/);
 });
 
 test("skill documentation explains the no-key baseline and optional provider keys", () => {

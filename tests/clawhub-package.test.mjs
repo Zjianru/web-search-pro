@@ -80,13 +80,20 @@ test("build-clawhub-package generates registry-facing metadata and docs", () => 
 
   assert.deepEqual(metadata.openclaw.requires.bins, ["node"]);
   assert.deepEqual(metadata.openclaw.requires.env, expectedOptionalEnv);
+  assert.deepEqual(metadata.openclaw.requires.config, ["config.json"]);
   assert.match(String(metadata.openclaw.requires.note ?? ""), /No API key is required/i);
 
   assert.deepEqual(metadata.clawdbot.requires.bins, ["node"]);
-  assert.deepEqual(metadata.clawdbot.requires.env, expectedOptionalEnv);
+  assert.deepEqual(metadata.clawdbot.requires.config, ["config.json"]);
   assert.match(String(metadata.clawdbot.requires.note ?? ""), /No API key is required/i);
+  assert.equal(Array.isArray(metadata.clawdbot.install), true);
+  assert.equal(metadata.clawdbot.install[0]?.kind, "node");
+  assert.deepEqual(metadata.clawdbot.install[0]?.bins ?? [], ["node"]);
   assert.equal(typeof metadata.clawdbot.cliHelp, "string");
   assert.match(metadata.clawdbot.cliHelp, /search\.mjs --help/);
+  assert.deepEqual(metadata.clawdbot.config?.stateDirs ?? [], [".cache/web-search-pro"]);
+  assert.equal(typeof metadata.clawdbot.config?.example, "string");
+  assert.match(metadata.clawdbot.config.example, /WEB_SEARCH_PRO_CONFIG/);
 
   assert.doesNotMatch(skill, /render\.mjs/);
   assert.doesNotMatch(skill, /renderLane/);
@@ -95,11 +102,13 @@ test("build-clawhub-package generates registry-facing metadata and docs", () => 
   assert.match(readme, /ClawHub/i);
   assert.match(readme, /optional provider credentials or endpoints/i);
   assert.match(readme, /## Quick Start/i);
+  assert.match(readme, /## Install Model/i);
   assert.match(readme, /No-key baseline/i);
   assert.match(readme, /Add one premium provider/i);
   assert.match(readme, /Why Federated Search Matters/i);
   assert.match(readme, /resultsRecoveredByFanout/);
   assert.match(skill, /## Quick Start/i);
+  assert.match(skill, /## Install Model/i);
   assert.match(skill, /Why Federated Search Matters/i);
   assert.match(readme, /not an instruction-only bundle/i);
   assert.match(skill, /not an instruction-only bundle/i);

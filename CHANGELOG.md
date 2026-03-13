@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 This project uses **product versioning** for the skill surface and **schema versioning** for
 machine-readable payloads.
 
+## [2.1.3] - 2026-03-14
+
+`2.1.3` is the ClawHub metadata-alignment follow-up to `2.1.2`.
+
+It does not change search quality or provider behavior. Instead, it makes the published package
+declare its install model and local state/config contract more explicitly so registry review sees
+the same runtime shape the bundle actually uses.
+
+### Changed
+
+- Added an explicit `Install Model` section to the root skill and generated ClawHub docs
+- Declared `config.json` as the optional config file path in `clawdbot.requires.config`
+- Declared `.cache/web-search-pro` as the package state directory in `clawdbot.config.stateDirs`
+- Added a direct Node-backed install declaration in `clawdbot.install`
+- Updated ClawHub compliance/package docs and TDD coverage for the new metadata contract
+
+### Compatibility
+
+- Product / docs line remains `2.1`
+- Release tag advances to `2.1.3`
+- Stable machine-readable JSON schema remains `1.0`
+- Search / extract / crawl / map / research behavior remains unchanged
+
 ## [2.1.2] - 2026-03-14
 
 `2.1.2` is the ClawHub trust-hardening follow-up to `2.1.1`.
