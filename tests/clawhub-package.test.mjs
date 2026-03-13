@@ -86,6 +86,13 @@ test("build-clawhub-package generates registry-facing metadata and docs", () => 
   assert.doesNotMatch(readme, /renderLane/);
   assert.match(readme, /ClawHub/i);
   assert.match(readme, /optional provider credentials or endpoints/i);
+  assert.match(readme, /## Quick Start/i);
+  assert.match(readme, /No-key baseline/i);
+  assert.match(readme, /Add one premium provider/i);
+  assert.match(readme, /Why Federated Search Matters/i);
+  assert.match(readme, /resultsRecoveredByFanout/);
+  assert.match(skill, /## Quick Start/i);
+  assert.match(skill, /Why Federated Search Matters/i);
 });
 
 test("generated package removes render-facing CLI surface but keeps core runtime healthy", async () => {

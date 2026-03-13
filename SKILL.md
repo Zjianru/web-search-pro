@@ -34,6 +34,72 @@ Search keywords:
 `multilingual search`, `Baidu search`, `answer-first search`, `cited answers`,
 `explainable routing`, `no-key baseline`
 
+## Quick Start
+
+The shortest successful path is:
+
+- start with the no-key baseline
+- add one premium provider only when you need stronger recall or fresher results
+- then try docs, news, and research flows
+
+### Option A: No-key baseline
+
+No API key is required for the first successful run. The baseline is:
+
+- `ddg` for best-effort web search
+- `fetch` for extract / crawl / map fallback
+
+```bash
+node {baseDir}/scripts/doctor.mjs --json
+node {baseDir}/scripts/bootstrap.mjs --json
+node {baseDir}/scripts/search.mjs "OpenAI Responses API docs" --json
+```
+
+### Option B: Add one premium provider
+
+If you only add one premium provider, start with `TAVILY_API_KEY`. It is the shortest upgrade path
+because one credential improves general web search, news search, and extract quality.
+
+```bash
+export TAVILY_API_KEY=tvly-xxxxx
+node {baseDir}/scripts/doctor.mjs --json
+node {baseDir}/scripts/search.mjs "latest OpenAI news" --type news --json
+```
+
+### First successful searches
+
+```bash
+node {baseDir}/scripts/search.mjs "OpenClaw web search" --json
+node {baseDir}/scripts/search.mjs "OpenAI Responses API docs" --preset docs --plan --json
+node {baseDir}/scripts/extract.mjs "https://platform.openai.com/docs" --json
+```
+
+### Then try docs, news, and research
+
+```bash
+node {baseDir}/scripts/search.mjs "OpenAI Responses API docs" --preset docs --json
+node {baseDir}/scripts/search.mjs "latest OpenAI news" --type news --json
+node {baseDir}/scripts/research.mjs "OpenClaw search skill landscape" --plan --json
+```
+
+## Why Federated Search Matters
+
+Federation is not just "more providers". It exposes compact gain metrics that let agents and users
+see where multi-provider search beat primary-only search.
+
+- `federated.providersUsed`
+  The providers that actually returned results.
+- `federated.value.additionalProvidersUsed`
+  How many non-primary providers really contributed.
+- `federated.value.resultsRecoveredByFanout`
+  Final results that would disappear in primary-only mode.
+- `federated.value.resultsCorroboratedByFanout`
+  Final results supported by both the primary and at least one fanout provider.
+- `federated.value.duplicateSavings`
+  Exact or near-duplicate results collapsed by merge.
+- `routingSummary.federation.value`
+  The compact federation gain summary exposed with route explanation.
+
 ## Distribution Surfaces
 
 The repository has two valid distribution surfaces:
@@ -103,6 +169,9 @@ Important variables and fields:
   signals and runner-up context.
 - `federated.providersUsed`
   The actual provider set that returned results when fanout is active.
+- `federated.value`
+  Compact federation gain summary: added providers, recovered results, corroborated results,
+  and duplicate savings.
 - `cached` / `cache`
   Cache hit plus age / TTL telemetry for agents.
 - `federated.fanoutPolicy`

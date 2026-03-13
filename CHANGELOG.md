@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 This project uses **product versioning** for the skill surface and **schema versioning** for
 machine-readable payloads.
 
+## [2.1.1] - 2026-03-14
+
+`2.1.1` is the first follow-up patch release after `2.1.0`.
+
+It does not widen the architecture again. Instead, it removes first-use friction and makes
+federated-search value visible to both users and agents. The retrieval stack is the same, but the
+onboarding path and federation output are now much easier to understand from the first run.
+
+### Added
+
+- Explicit quick-start flows for:
+  - no-key baseline usage
+  - adding exactly one premium provider
+  - first successful search / extract / research commands
+- Compact federation gain metrics in search output:
+  - `federated.value.additionalProvidersUsed`
+  - `federated.value.resultsRecoveredByFanout`
+  - `federated.value.resultsCorroboratedByFanout`
+  - `federated.value.duplicateSavings`
+- TDD coverage for docs surfaces and federation-value output
+
+### Changed
+
+- Rewrote `README.md` and `SKILL.md` quick-start sections to front-load the minimum successful
+  path instead of only listing commands
+- Updated generated ClawHub README / SKILL copy so registry installs expose the same onboarding
+  and federation value story as the repository docs
+- Improved markdown search output so federated runs now show concrete gain summaries instead of
+  only raw / deduped counts
+
+### Compatibility
+
+- Product / docs line remains `2.1`
+- Release tag advances to `2.1.1`
+- Stable machine-readable JSON schema remains `1.0`
+- New federation fields are additive
+
 ## [2.1.0] - 2026-03-14
 
 `2.1.0` is the first feature release on top of the `2.0` retrieval-stack line.

@@ -30,7 +30,87 @@ function formatFederationSummary(federation) {
   }
   const raw = federation.resultStats?.rawResultCount ?? 0;
   const deduped = federation.resultStats?.dedupedResultCount ?? 0;
-  return `${federation.providersUsed.join(", ")} (merge=${federation.mergePolicy}; raw=${raw}; deduped=${deduped})`;
+  const value = federation.value ?? null;
+  const gainParts = [];
+
+  if ((value?.additionalProvidersUsed ?? 0) > 0) {
+    gainParts.push(`+${value.additionalProvidersUsed} providers`);
+  }
+  if ((value?.resultsRecoveredByFanout ?? 0) > 0) {
+    const suffix = value.resultsRecoveredByFanout === 1 ? "result" : "results";
+    gainParts.push(`+${value.resultsRecoveredByFanout} recovered ${suffix}`);
+  }
+  if ((value?.resultsCorroboratedByFanout ?? 0) > 0) {
+    const suffix = value.resultsCorroboratedByFanout === 1 ? "result" : "results";
+    gainParts.push(`${value.resultsCorroboratedByFanout} corroborated ${suffix}`);
+  }
+  if ((value?.duplicateSavings ?? 0) > 0) {
+    const suffix = value.duplicateSavings === 1 ? "duplicate" : "duplicates";
+    gainParts.push(`${value.duplicateSavings} ${suffix} collapsed`);
+  }
+
+  const gains = gainParts.length > 0 ? `; ${gainParts.join("; ")}` : "";
+  return `${federation.providersUsed.join(", ")} (merge=${federation.mergePolicy}; raw=${raw}; deduped=${deduped}${gains})`;
+}
+
+function getResultProviderIds(item = {}) {
+  if (Array.isArray(item.providers) && item.providers.length > 0) {
+    return item.providers.filter(Boolean);
+  }
+  if (Array.isArray(item.providerIds) && item.providerIds.length > 0) {
+    return item.providerIds.filter(Boolean);
+  }
+  if (item.providerId) {
+    return [item.providerId];
+  }
+  return [];
+}
+
+function buildFederationValue(federation, results = []) {
+  if (!federation?.triggered) {
+    return null;
+  }
+
+  const primaryProvider = federation.primaryProvider ?? null;
+  const providersUsed = (federation.providersUsed ?? []).filter(Boolean);
+  const additionalProvidersUsed = providersUsed.filter(
+    (providerId) => providerId !== primaryProvider,
+  ).length;
+  const resultProviders = results.map((item) => getResultProviderIds(item));
+  const resultsWithFanoutSupport = resultProviders.filter((providerIds) =>
+    providerIds.some((providerId) => providerId !== primaryProvider),
+  ).length;
+  const resultsRecoveredByFanout = resultProviders.filter((providerIds) => {
+    const hasFanout = providerIds.some((providerId) => providerId !== primaryProvider);
+    const hasPrimary = primaryProvider ? providerIds.includes(primaryProvider) : false;
+    return hasFanout && !hasPrimary;
+  }).length;
+  const resultsCorroboratedByFanout =
+    resultsWithFanoutSupport - resultsRecoveredByFanout;
+  const duplicateSavings =
+    (federation.mergeSummary?.dedupedUrls ?? 0) +
+    (federation.mergeSummary?.nearDuplicateDrops ?? 0);
+
+  return {
+    additionalProvidersUsed,
+    resultsWithFanoutSupport,
+    resultsRecoveredByFanout,
+    resultsCorroboratedByFanout,
+    duplicateSavings,
+    answerProvider: federation.mergeSummary?.answerProvider ?? null,
+    primarySucceeded: federation.primarySucceeded ?? null,
+  };
+}
+
+function materializeFederation(federation, results = []) {
+  if (!federation) {
+    return null;
+  }
+
+  return {
+    ...federation,
+    value: federation.value ?? buildFederationValue(federation, results),
+  };
 }
 
 function countCandidatesByStatus(candidates = []) {
@@ -93,13 +173,19 @@ function summarizeFederation(federation) {
     providersPlanned: federation.providersPlanned ?? [],
     providersUsed: federation.providersUsed ?? [],
     mergePolicy: federation.mergePolicy ?? null,
+    value: federation.value ?? null,
   };
 }
 
-export function buildRoutingSummary(plan, federation = null) {
+export function buildRoutingSummary(plan, federation = null, results = []) {
   if (!plan) {
     return null;
   }
+
+  const effectiveFederation = materializeFederation(
+    federation ?? plan.federation ?? null,
+    results,
+  );
 
   const selectedProviderId = plan.selected?.provider.id ?? null;
   const alternativeCandidates = plan.candidates
@@ -130,7 +216,7 @@ export function buildRoutingSummary(plan, federation = null) {
     alternatives: alternativeCandidates,
     blockedProviders,
     healthWarnings: summarizeHealthWarnings(plan.candidates),
-    federation: summarizeFederation(federation ?? plan.federation ?? null),
+    federation: summarizeFederation(effectiveFederation),
     error: plan.error?.message ?? null,
   };
 }
@@ -139,9 +225,18 @@ export function finalizeCommandOutput(
   payload,
   { plan = null, includeRouting = false, federation = null, cache = null } = {},
 ) {
+  const effectiveFederation =
+    typeof payload.federated === "undefined" && !federation
+      ? null
+      : materializeFederation(federation ?? payload.federated ?? null, payload.results ?? []);
   const next = {
     ...payload,
-    ...(plan ? { routingSummary: buildRoutingSummary(plan, federation) } : {}),
+    ...(typeof payload.federated !== "undefined" || effectiveFederation
+      ? { federated: effectiveFederation }
+      : {}),
+    ...(plan
+      ? { routingSummary: buildRoutingSummary(plan, effectiveFederation, payload.results ?? []) }
+      : {}),
     ...(cache ? { cached: cache.hit, cache } : {}),
   };
 

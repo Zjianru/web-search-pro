@@ -276,6 +276,52 @@ Search keywords:
 \`site map\`, \`multilingual search\`, \`Baidu search\`, \`answer-first search\`,
 \`cited answers\`, \`explainable routing\`, \`no-key baseline\`
 
+## Quick Start
+
+The shortest successful path is:
+
+- Option A: No-key baseline
+- Option B: Add one premium provider
+- Then try docs, news, and research
+
+### Option A: No-key baseline
+
+No API key is required for the first successful run.
+
+\`\`\`bash
+node scripts/doctor.mjs --json
+node scripts/bootstrap.mjs --json
+node scripts/search.mjs "OpenAI Responses API docs" --json
+\`\`\`
+
+### Option B: Add one premium provider
+
+If you only add one premium provider, start with \`TAVILY_API_KEY\`.
+
+\`\`\`bash
+export TAVILY_API_KEY=tvly-xxxxx
+node scripts/doctor.mjs --json
+node scripts/search.mjs "latest OpenAI news" --type news --json
+\`\`\`
+
+### First successful searches
+
+\`\`\`bash
+node scripts/search.mjs "OpenClaw web search" --json
+node scripts/search.mjs "OpenAI Responses API docs" --preset docs --plan --json
+node scripts/extract.mjs "https://platform.openai.com/docs" --json
+\`\`\`
+
+## Why Federated Search Matters
+
+Federation is not just "more providers". It exposes compact gain metrics:
+
+- \`federated.value.additionalProvidersUsed\`
+- \`federated.value.resultsRecoveredByFanout\`
+- \`federated.value.resultsCorroboratedByFanout\`
+- \`federated.value.duplicateSavings\`
+- \`routingSummary.federation.value\`
+
 ## What This Package Includes
 
 - \`search.mjs\`
@@ -331,6 +377,9 @@ The baseline remains:
   Compact route explanation for agents.
 - \`federated.providersUsed\`
   The provider set that actually returned results when fanout is active.
+- \`federated.value\`
+  Compact federation gain summary for additional providers, recovered results, corroboration, and
+  duplicate savings.
 - \`cached\` / \`cache\`
   Cache hit plus TTL telemetry for agents.
 - \`topicType\`, \`topicSignals\`, \`researchAxes\`
@@ -405,6 +454,52 @@ Search keywords:
 \`site map\`, \`multilingual search\`, \`Baidu search\`, \`answer-first search\`,
 \`cited answers\`, \`explainable routing\`, \`no-key baseline\`
 
+## Quick Start
+
+The shortest successful path is:
+
+- Option A: No-key baseline
+- Option B: Add one premium provider
+- Then try docs, news, and research
+
+### Option A: No-key baseline
+
+No API key is required for the first successful run.
+
+\`\`\`bash
+node {baseDir}/scripts/doctor.mjs --json
+node {baseDir}/scripts/bootstrap.mjs --json
+node {baseDir}/scripts/search.mjs "OpenAI Responses API docs" --json
+\`\`\`
+
+### Option B: Add one premium provider
+
+If you only add one premium provider, start with \`TAVILY_API_KEY\`.
+
+\`\`\`bash
+export TAVILY_API_KEY=tvly-xxxxx
+node {baseDir}/scripts/doctor.mjs --json
+node {baseDir}/scripts/search.mjs "latest OpenAI news" --type news --json
+\`\`\`
+
+### First successful searches
+
+\`\`\`bash
+node {baseDir}/scripts/search.mjs "OpenClaw web search" --json
+node {baseDir}/scripts/search.mjs "OpenAI Responses API docs" --preset docs --plan --json
+node {baseDir}/scripts/extract.mjs "https://platform.openai.com/docs" --json
+\`\`\`
+
+## Why Federated Search Matters
+
+Federation is not just "more providers". It exposes compact gain metrics:
+
+- \`federated.value.additionalProvidersUsed\`
+- \`federated.value.resultsRecoveredByFanout\`
+- \`federated.value.resultsCorroboratedByFanout\`
+- \`federated.value.duplicateSavings\`
+- \`routingSummary.federation.value\`
+
 Included commands:
 
 - \`search.mjs\`
@@ -427,6 +522,9 @@ Key semantics:
   Compact route explanation for agents.
 - \`federated.providersUsed\`
   The providers that actually returned results when fanout is active.
+- \`federated.value\`
+  Compact federation gain summary for additional providers, recovered results, corroboration, and
+  duplicate savings.
 - \`cached\` / \`cache\`
   Cache hit plus TTL telemetry for agents.
 - \`topicType\`, \`topicSignals\`, \`researchAxes\`

@@ -29,6 +29,120 @@ search routing, extraction, crawling, diagnostics, and research-pack generation.
 `multilingual search`, `Baidu search`, `Google-like search`, `answer-first search`,
 `cited answers`, `explainable routing`, `no-key baseline`
 
+## Quick Start / 快速开始
+
+The shortest successful path is:
+
+- start with the no-key baseline
+- add one premium provider only when you need stronger recall or fresher results
+- then try docs, news, and research flows
+
+最短上手路径是：
+
+- 先跑通零 key baseline
+- 只有在需要更强召回或更强时效时，再加一个 premium provider
+- 然后继续尝试 docs、news 和 research 流程
+
+### Option A: No-key baseline / 零 key 基线
+
+No API key is required for the first successful run. The baseline is:
+
+- `ddg` for best-effort web search
+- `fetch` for extract, crawl, and map fallback
+
+第一条成功路径不需要 API key。baseline 由两部分组成：
+
+- `ddg`：best-effort 网页搜索
+- `fetch`：extract、crawl、map 的零 key fallback
+
+```bash
+node scripts/doctor.mjs --json
+node scripts/bootstrap.mjs --json
+node scripts/search.mjs "OpenAI Responses API docs" --json
+```
+
+### Option B: Add one premium provider / 只加一个 premium provider
+
+If you only add one premium provider, start with `TAVILY_API_KEY`. It is the shortest upgrade path
+because it improves general web search, news search, and extract quality with one credential.
+
+如果你只想先加一个 premium provider，优先从 `TAVILY_API_KEY` 开始。它是最短升级路径，因为
+一组凭据就能同时增强一般网页搜索、新闻搜索和 extract 质量。
+
+```bash
+export TAVILY_API_KEY=tvly-xxxxx
+node scripts/doctor.mjs --json
+node scripts/search.mjs "latest OpenAI news" --type news --json
+```
+
+### First successful searches / 第一批成功命令
+
+```bash
+node scripts/search.mjs "OpenClaw web search" --json
+node scripts/search.mjs "OpenAI Responses API docs" --preset docs --plan --json
+node scripts/extract.mjs "https://platform.openai.com/docs" --json
+```
+
+### Then try docs, news, and research / 然后继续尝试 docs、news 和 research
+
+```bash
+node scripts/search.mjs "OpenAI Responses API docs" --preset docs --json
+node scripts/search.mjs "latest OpenAI news" --type news --json
+node scripts/research.mjs "OpenClaw search skill landscape" --plan --json
+```
+
+## Why Federated Search Matters / 联邦搜索为什么有价值
+
+Federation is not just "more providers". It makes multi-provider value visible with compact,
+machine-readable gain metrics.
+
+联邦搜索不只是“多跑几个 provider”，而是把多 provider 的真实增益变成紧凑、可机器消费的指标。
+
+- `federated.providersUsed`
+  Providers that actually returned results.
+  真实返回结果的 provider 集合。
+- `federated.value.additionalProvidersUsed`
+  How many non-primary providers actually contributed.
+  真正贡献结果的非主 provider 数量。
+- `federated.value.resultsRecoveredByFanout`
+  Final results that disappear in primary-only mode.
+  如果只跑主 provider 就会消失的最终结果数量。
+- `federated.value.resultsCorroboratedByFanout`
+  Final results supported by both the primary and at least one fanout provider.
+  同时得到主 provider 和 fanout provider 支持的最终结果数量。
+- `federated.value.duplicateSavings`
+  Exact or near-duplicate results collapsed by the merge.
+  merge 过程中被折叠掉的精确或近似重复结果数量。
+- `routingSummary.federation.value`
+  The compact federation gain summary exposed alongside route explanation.
+  与路由解释一起暴露的紧凑联邦增益摘要。
+
+Example:
+
+```json
+{
+  "federated": {
+    "providersUsed": ["serper", "tavily"],
+    "value": {
+      "additionalProvidersUsed": 1,
+      "resultsWithFanoutSupport": 2,
+      "resultsRecoveredByFanout": 1,
+      "resultsCorroboratedByFanout": 1,
+      "duplicateSavings": 1,
+      "answerProvider": "tavily",
+      "primarySucceeded": true
+    }
+  }
+}
+```
+
+Interpretation:
+
+- `resultsRecoveredByFanout=1` means federation produced one final result that primary-only search
+  would have missed.
+- `resultsCorroboratedByFanout=1` means another final result got multi-provider support.
+- `duplicateSavings=1` means the merge removed one duplicate instead of wasting result slots.
+
 ## Versioning / 版本说明
 
 - Product / docs version: `2.1`
@@ -125,6 +239,10 @@ Important semantics / 关键语义：
 - `federated.providersUsed`
   Providers that actually returned results.  
   真实参与并返回结果的 provider 集合。
+- `federated.value`
+  Compact federation gain summary: added providers, recovered results, corroborated results,
+  and duplicate savings.
+  紧凑的联邦增益摘要：额外 provider、补回结果、多源佐证结果，以及重复去除收益。
 - `cached` / `cache`
   Cache hit flag plus age / TTL telemetry for agents.
   面向 Agent 的缓存命中标志与 age / TTL 遥测。
@@ -179,34 +297,6 @@ Provider roles / 各 provider 角色：
 - DDG: best-effort no-key baseline search
 - Fetch: no-key extract / crawl / map baseline
 - Render: optional local browser lane
-
-## Quick Start / 快速开始
-
-```bash
-# Search / 搜索
-node scripts/search.mjs "OpenClaw web search"
-node scripts/search.mjs "query" --deep --plan --json
-node scripts/search.mjs "latest OpenAI news" --type news --json
-node scripts/search.mjs "OpenAI Responses API docs" --preset docs --plan --json
-
-# Extract / 提取
-node scripts/extract.mjs "https://example.com/article" --json
-
-# Crawl / Map / 抓取与站点结构
-node scripts/crawl.mjs "https://example.com/docs" --depth 2 --max-pages 10 --json
-node scripts/map.mjs "https://example.com/docs" --depth 2 --max-pages 50 --json
-
-# Research pack / 研究证据包
-node scripts/research.mjs "OpenClaw search skill landscape" --plan --json
-
-# Review / 自检与审查
-node scripts/doctor.mjs --json
-node scripts/bootstrap.mjs --json
-node scripts/review.mjs --json
-node scripts/eval.mjs run --suite research --json
-node scripts/eval.mjs run --suite head-to-head --json
-node scripts/eval.mjs run --suite head-to-head-live --json
-```
 
 Browser render is explicit and bounded: challenge / anti-bot interstitial pages are reported as failures, not silent successes.  
 浏览器渲染是显式且受限的：遇到 challenge / anti-bot 中间页会明确报失败，不会伪装成成功。
