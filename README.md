@@ -465,6 +465,7 @@ Browser render:
 - [docs/clawhub-package.md](/Users/codez/develop/web-search-pro/docs/clawhub-package.md)
 - [docs/search-ux-model.md](/Users/codez/develop/web-search-pro/docs/search-ux-model.md)
 - [docs/head-to-head-eval.md](/Users/codez/develop/web-search-pro/docs/head-to-head-eval.md)
+- [docs/marketing-launch-kit.md](/Users/codez/develop/web-search-pro/docs/marketing-launch-kit.md)
 - [docs/scrapling-absorption-plan.md](/Users/codez/develop/web-search-pro/docs/scrapling-absorption-plan.md)
 - [docs/releases/v2.1.3.md](/Users/codez/develop/web-search-pro/docs/releases/v2.1.3.md)
 - [docs/releases/v2.1.2.md](/Users/codez/develop/web-search-pro/docs/releases/v2.1.2.md)
