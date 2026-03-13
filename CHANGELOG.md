@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 This project uses **product versioning** for the skill surface and **schema versioning** for
 machine-readable payloads.
 
+## [2.1.2] - 2026-03-14
+
+`2.1.2` is the ClawHub trust-hardening follow-up to `2.1.1`.
+
+It does not widen the search or retrieval surface. Instead, it makes the published runtime more
+honest to static review and registry packaging without weakening the actual no-key baseline.
+
+### Changed
+
+- Added `metadata.clawdbot` to the root skill and generated ClawHub package while keeping
+  compatibility `metadata.openclaw`
+- Updated generated ClawHub README / SKILL copy so the package is explicitly described as a
+  code-backed Node runtime, not an instruction-only bundle
+- Switched the no-key `ddg` baseline from a Python helper transport to `curl` with built-in
+  `fetch` fallback
+- Removed the Python helper transport implementation from `http-client.mjs`
+- Updated ClawHub compliance and packaging docs to match the current shipped runtime
+
+### Compatibility
+
+- Product / docs line remains `2.1`
+- Release tag advances to `2.1.2`
+- Stable machine-readable JSON schema remains `1.0`
+- Search routing and provider capability semantics remain unchanged
+
 ## [2.1.1] - 2026-03-14
 
 `2.1.1` is the first follow-up patch release after `2.1.0`.

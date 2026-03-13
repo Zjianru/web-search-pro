@@ -50,7 +50,7 @@ export async function search(query, opts = {}) {
         "content-type": "application/x-www-form-urlencoded",
       },
       body: new URLSearchParams({ q: searchQuery }).toString(),
-      transport: "python",
+      transport: "curl",
     });
   } catch {
     const searchUrl = new URL(SEARCH_URL);

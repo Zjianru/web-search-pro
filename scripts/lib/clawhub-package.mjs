@@ -257,6 +257,7 @@ search, docs lookup, code lookup, company research, site crawl, site map, and st
 packs.
 This ClawHub package ships the core profile that is most useful to installed agents while keeping
 the registry-facing package narrow and review-friendly.
+It is a code-backed Node runtime package, not an instruction-only bundle.
 
 ## Common Agent Tasks
 
@@ -403,6 +404,8 @@ node scripts/review.mjs --json
 The GitHub repository contains the full \`2.1\` source tree, including extra local-only developer
 surfaces and validation tooling. The ClawHub publish package intentionally keeps the installed
 artifact smaller so the registry package stays honest about its runtime shape.
+The shipped core profile runs with Node plus direct network access through \`curl\` or built-in
+\`fetch\`; it does not rely on Python helper transports.
 
 Full source:
 - https://github.com/Zjianru/web-search-pro
@@ -410,14 +413,20 @@ Full source:
 }
 
 function buildClawhubSkillMarkdown() {
+  const optionalRuntimeDisclosure = {
+    bins: ["node"],
+    env: OPTIONAL_ENV_DISCLOSURE,
+    note: "No API key is required for the baseline. Optional provider credentials or endpoints widen retrieval coverage.",
+  };
   const metadata = {
     openclaw: {
       emoji: "🔎",
-      requires: {
-        bins: ["node"],
-        env: OPTIONAL_ENV_DISCLOSURE,
-        note: "No API key is required for the baseline. Optional provider credentials or endpoints widen retrieval coverage.",
-      },
+      requires: optionalRuntimeDisclosure,
+    },
+    clawdbot: {
+      emoji: "🔎",
+      requires: optionalRuntimeDisclosure,
+      cliHelp: "node {baseDir}/scripts/search.mjs --help",
     },
   };
 
@@ -435,6 +444,7 @@ metadata: ${JSON.stringify(metadata)}
 # Web Search Pro 2.1 Core Profile
 
 This ClawHub package publishes the core retrieval profile of \`web-search-pro\`.
+It is a code-backed Node runtime package, not an instruction-only bundle.
 
 Common agent tasks:
 
@@ -513,6 +523,13 @@ Included commands:
 - \`review.mjs\`
 - \`cache.mjs\`
 - \`health.mjs\`
+
+Runtime notes:
+
+- Node is the only hard runtime requirement.
+- No API key is required for the baseline.
+- Optional provider credentials or endpoints widen coverage.
+- Baseline outbound requests use \`curl\` when available and fall back to built-in \`fetch\`.
 
 Key semantics:
 

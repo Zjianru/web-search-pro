@@ -6,7 +6,7 @@ description: |
   Includes a real no-key baseline plus optional Tavily, Exa, Querit, Serper, Brave, SerpAPI,
   You.com, SearXNG, and Perplexity / Sonar providers for wider coverage and answer-first routing.
 homepage: https://github.com/Zjianru/web-search-pro
-metadata: {"openclaw":{"emoji":"🔎","requires":{"bins":["node"]}}}
+metadata: {"openclaw":{"emoji":"🔎","requires":{"bins":["node"]}},"clawdbot":{"emoji":"🔎","requires":{"bins":["node"]},"cliHelp":"node {baseDir}/scripts/search.mjs --help"}}
 ---
 
 # Web Search Pro 2.1
@@ -110,6 +110,7 @@ The repository has two valid distribution surfaces:
 The full source tree keeps the complete `2.1` surface, including `render.mjs`, `eval.mjs`, and
 the test / benchmark toolchain. The ClawHub package intentionally publishes a narrower install
 profile so registry-facing metadata and scan scope stay closer to the shipped runtime.
+Both surfaces are code-backed Node skill packages, not instruction-only bundles.
 
 ## What It Includes
 

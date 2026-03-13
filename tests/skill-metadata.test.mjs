@@ -15,11 +15,17 @@ function getMetadataObject(markdown) {
 test("skill metadata does not overstate credential requirements", () => {
   const metadata = getMetadataObject(content);
   const openclaw = metadata.openclaw ?? {};
+  const clawdbot = metadata.clawdbot ?? {};
 
   assert.deepEqual(openclaw.requires?.bins ?? [], ["node"]);
   assert.equal(openclaw.always, undefined);
   assert.equal(openclaw.primaryEnv, undefined);
   assert.deepEqual(openclaw.requires?.env ?? [], []);
+
+  assert.deepEqual(clawdbot.requires?.bins ?? [], ["node"]);
+  assert.deepEqual(clawdbot.requires?.env ?? [], []);
+  assert.equal(typeof clawdbot.cliHelp, "string");
+  assert.match(clawdbot.cliHelp, /search\.mjs --help/);
 });
 
 test("skill documentation explains the no-key baseline and optional provider keys", () => {

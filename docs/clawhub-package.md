@@ -93,10 +93,18 @@ That disclosure must stay honest:
 The publish package must satisfy these rules:
 
 1. It must be installable and runnable as a skill on its own.
-2. It must not promise features that were removed from the package.
-3. It must not overstate hard requirements.
-4. It must preserve the core retrieval experience.
-5. It must shrink scanner noise rather than merely rewording it.
+2. It must present itself as a code-backed Node package, not an instruction-only bundle.
+3. It must not promise features that were removed from the package.
+4. It must not overstate hard requirements.
+5. It must preserve the core retrieval experience.
+6. It must shrink scanner noise rather than merely rewording it.
+
+Current hardening choices for the ClawHub package:
+
+- publish `metadata.clawdbot` alongside compatibility `metadata.openclaw`
+- disclose optional provider env vars without claiming they are all mandatory
+- keep the no-key baseline real
+- avoid Python helper transports in the shipped runtime path
 
 ## Release Rule
 

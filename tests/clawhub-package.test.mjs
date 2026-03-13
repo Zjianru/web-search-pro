@@ -62,8 +62,7 @@ test("build-clawhub-package generates registry-facing metadata and docs", () => 
   assert.ok(metadataMatch, "generated package must contain metadata");
   const metadata = JSON.parse(metadataMatch[1]);
 
-  assert.deepEqual(metadata.openclaw.requires.bins, ["node"]);
-  assert.deepEqual(metadata.openclaw.requires.env, {
+  const expectedOptionalEnv = {
     TAVILY_API_KEY: "optional — premium deep search, news, and extract",
     EXA_API_KEY: "optional — semantic search and extract fallback",
     QUERIT_API_KEY: "optional — multilingual AI search with native geo and language filters",
@@ -77,8 +76,17 @@ test("build-clawhub-package generates registry-facing metadata and docs", () => 
     PERPLEXITY_GATEWAY_API_KEY: "optional — custom gateway key for Perplexity/Sonar models",
     PERPLEXITY_BASE_URL: "optional — required with PERPLEXITY_GATEWAY_API_KEY",
     SEARXNG_INSTANCE_URL: "optional — self-hosted privacy-first metasearch endpoint",
-  });
+  };
+
+  assert.deepEqual(metadata.openclaw.requires.bins, ["node"]);
+  assert.deepEqual(metadata.openclaw.requires.env, expectedOptionalEnv);
   assert.match(String(metadata.openclaw.requires.note ?? ""), /No API key is required/i);
+
+  assert.deepEqual(metadata.clawdbot.requires.bins, ["node"]);
+  assert.deepEqual(metadata.clawdbot.requires.env, expectedOptionalEnv);
+  assert.match(String(metadata.clawdbot.requires.note ?? ""), /No API key is required/i);
+  assert.equal(typeof metadata.clawdbot.cliHelp, "string");
+  assert.match(metadata.clawdbot.cliHelp, /search\.mjs --help/);
 
   assert.doesNotMatch(skill, /render\.mjs/);
   assert.doesNotMatch(skill, /renderLane/);
@@ -93,12 +101,16 @@ test("build-clawhub-package generates registry-facing metadata and docs", () => 
   assert.match(readme, /resultsRecoveredByFanout/);
   assert.match(skill, /## Quick Start/i);
   assert.match(skill, /Why Federated Search Matters/i);
+  assert.match(readme, /not an instruction-only bundle/i);
+  assert.match(skill, /not an instruction-only bundle/i);
 });
 
 test("generated package removes render-facing CLI surface but keeps core runtime healthy", async () => {
   const outputDir = buildPackage();
   const extractHelp = runNode(outputDir, ["scripts/extract.mjs", "--help"]);
   const researchHelp = runNode(outputDir, ["scripts/research.mjs", "--help"]);
+  const ddgSource = readFile(outputDir, "scripts/engines/ddg.mjs");
+  const httpClientSource = readFile(outputDir, "scripts/lib/http-client.mjs");
   const doctorPayload = JSON.parse(runNode(outputDir, ["scripts/doctor.mjs", "--json"]));
   const bootstrapPayload = JSON.parse(runNode(outputDir, ["scripts/bootstrap.mjs", "--json"]));
   const reviewPayload = JSON.parse(runNode(outputDir, ["scripts/review.mjs", "--json"]));
@@ -109,6 +121,9 @@ test("generated package removes render-facing CLI surface but keeps core runtime
   assert.doesNotMatch(extractHelp, /--render/);
   assert.doesNotMatch(extractHelp, /Force engine: .*render/);
   assert.doesNotMatch(researchHelp, /--allow-render/);
+  assert.doesNotMatch(ddgSource, /transport:\s*"python"/);
+  assert.doesNotMatch(httpClientSource, /requestTextViaPython/);
+  assert.doesNotMatch(httpClientSource, /python transport/);
 
   assert.equal("renderLane" in doctorPayload, false);
   assert.equal(bootstrapPayload.command, "bootstrap");

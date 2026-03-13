@@ -466,6 +466,8 @@ Browser render:
 - [docs/search-ux-model.md](/Users/codez/develop/web-search-pro/docs/search-ux-model.md)
 - [docs/head-to-head-eval.md](/Users/codez/develop/web-search-pro/docs/head-to-head-eval.md)
 - [docs/scrapling-absorption-plan.md](/Users/codez/develop/web-search-pro/docs/scrapling-absorption-plan.md)
+- [docs/releases/v2.1.2.md](/Users/codez/develop/web-search-pro/docs/releases/v2.1.2.md)
+- [docs/releases/v2.1.1.md](/Users/codez/develop/web-search-pro/docs/releases/v2.1.1.md)
 - [docs/releases/v2.1.0.md](/Users/codez/develop/web-search-pro/docs/releases/v2.1.0.md)
 - [docs/releases/v2.0.1.md](/Users/codez/develop/web-search-pro/docs/releases/v2.0.1.md)
 - [docs/releases/v2.0.0.md](/Users/codez/develop/web-search-pro/docs/releases/v2.0.0.md)

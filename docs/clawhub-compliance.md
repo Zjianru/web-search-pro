@@ -52,6 +52,10 @@ Reason:
 - feature coverage increases as more keys are configured
 - there is no accurate `env_any` metadata shape available for this skill model
 
+The generated ClawHub package adds `metadata.clawdbot` alongside compatibility
+`metadata.openclaw` so registry review can see the package as a code-backed Node runtime skill
+instead of an instruction-only artifact.
+
 ## Credential Disclosure
 
 Credential disclosure is moved to runtime review surfaces instead of hard metadata gating.
@@ -79,6 +83,9 @@ The no-key baseline is real, but bounded:
 
 - `ddg` provides best-effort search only
 - `fetch` provides extract / crawl / map baseline
+- `curl` is the preferred baseline network transport when available
+
+The shipped ClawHub core profile does not rely on Python helper transports.
 
 This is intentionally disclosed as **best-effort**, not guaranteed infrastructure.
 
