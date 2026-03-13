@@ -2,6 +2,20 @@
 
 This document explains the current ClawHub / OpenClaw compliance posture of `web-search-pro`.
 
+## Distribution Boundary
+
+`web-search-pro` now distinguishes between:
+
+- the full GitHub / local OpenClaw source tree
+- the generated ClawHub publish package
+
+The full repository keeps the entire `2.0` surface, including browser render, eval, and the local
+test toolchain. The ClawHub package is intentionally generated as a narrower core profile so the
+published artifact stays closer to what registry review can honestly reason about.
+
+Packaging details:
+- [docs/clawhub-package.md](/Users/codez/develop/web-search-pro/docs/clawhub-package.md)
+
 ## Why This Exists
 
 Earlier `1.x` moderation friction came from a metadata-model mismatch:

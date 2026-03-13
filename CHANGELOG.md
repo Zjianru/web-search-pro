@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 This project uses **product versioning** for the skill surface and **schema versioning** for
 machine-readable payloads.
 
+## [2.0.1] - 2026-03-13
+
+`2.0.1` is the compliance and packaging follow-up to `2.0.0`.
+
+It does not change the core GitHub / local OpenClaw `2.0` feature set. Instead, it separates the
+full source tree from the ClawHub publish artifact so registry-facing metadata and scanner scope
+match the shipped runtime more closely.
+
+### Added
+
+- `scripts/build-clawhub-package.mjs` for generating a ClawHub publish package
+- `scripts/lib/clawhub-package.mjs` for packaging rules and file transforms
+- `docs/clawhub-package.md` documenting the two distribution surfaces
+- TDD coverage for the generated ClawHub package contract
+
+### Changed
+
+- Introduced a ClawHub core profile that keeps `search`, `extract`, `crawl`, `map`, `research`,
+  `doctor`, `capabilities`, `review`, `cache`, and `health`
+- Added optional provider env disclosure to the generated ClawHub package metadata
+- Removed `tests`, `eval`, and the explicit browser-render lane from the generated ClawHub package
+- Updated `README.md`, `SKILL.md`, and compliance docs to explain the split between the full
+  source tree and the ClawHub publish artifact
+
+### Compliance And Safety
+
+- Reduced static scan noise by shrinking the published package boundary
+- Kept the root repository honest about the full `2.0` runtime surface
+- Kept OpenClaw root metadata unchanged while giving ClawHub a narrower, registry-friendly package
+- Preserved the no-key baseline and optional provider disclosure in the generated package
+
 ## [2.0.0] - 2026-03-13
 
 `2.0.0` is the major evolution of the original `1.x` line. The repository is no longer just a

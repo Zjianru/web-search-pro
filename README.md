@@ -16,6 +16,26 @@ retrieval, federation, diagnostics, and research-pack generation.
 `2.0` is a major product rewrite, but machine-readable payloads remain additive and compatible.  
 `2.0` 是产品层面的重大升级，但机器消费的 JSON 输出仍保持增量兼容，因此 schema 继续是 `1.0`。
 
+## Distribution Surfaces / 分发面
+
+The repository now has two honest distribution surfaces:
+
+- GitHub / local OpenClaw source tree: the full `2.0` feature set
+- ClawHub publish package: a generated core profile built by `scripts/build-clawhub-package.mjs`
+
+仓库现在有两个都真实、但职责不同的分发面：
+
+- GitHub / 本地 OpenClaw 源码树：完整 `2.0` 能力面
+- ClawHub 发布包：通过 `scripts/build-clawhub-package.mjs` 生成的 core profile
+
+Why this split exists:
+
+- GitHub 和本地 OpenClaw 需要完整的 `render`、`eval`、测试与研究工具链
+- ClawHub registry 更适合一个更窄、更诚实、静态扫描噪音更小的安装包
+
+Detailed notes / 详细说明：
+- [docs/clawhub-package.md](/Users/codez/develop/web-search-pro/docs/clawhub-package.md)
+
 ## From 1.x to 2.0 / 从 1.x 到 2.0
 
 | Dimension | `1.x` | `2.0` |
@@ -234,6 +254,7 @@ The compliance posture is:
 
 Detailed notes / 详细说明：
 - [docs/clawhub-compliance.md](/Users/codez/develop/web-search-pro/docs/clawhub-compliance.md)
+- [docs/clawhub-package.md](/Users/codez/develop/web-search-pro/docs/clawhub-package.md)
 
 ## Safety / 安全边界
 
@@ -272,7 +293,9 @@ Browser render:
 - [CHANGELOG.md](/Users/codez/develop/web-search-pro/CHANGELOG.md)
 - [docs/research-layer.md](/Users/codez/develop/web-search-pro/docs/research-layer.md)
 - [docs/clawhub-compliance.md](/Users/codez/develop/web-search-pro/docs/clawhub-compliance.md)
+- [docs/clawhub-package.md](/Users/codez/develop/web-search-pro/docs/clawhub-package.md)
 - [docs/scrapling-absorption-plan.md](/Users/codez/develop/web-search-pro/docs/scrapling-absorption-plan.md)
+- [docs/releases/v2.0.1.md](/Users/codez/develop/web-search-pro/docs/releases/v2.0.1.md)
 - [docs/releases/v2.0.0.md](/Users/codez/develop/web-search-pro/docs/releases/v2.0.0.md)
 
 ## License
