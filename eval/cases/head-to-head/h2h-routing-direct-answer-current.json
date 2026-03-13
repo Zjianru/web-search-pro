@@ -1,0 +1,47 @@
+{
+  "id": "h2h-routing-direct-answer-current",
+  "suite": "head-to-head",
+  "description": "Question-style current-info queries should favor answer-first or freshness-aware providers with non-low confidence.",
+  "intent": "search",
+  "tags": ["head-to-head", "routing", "direct-answer"],
+  "targets": [
+    {
+      "id": "web-search-pro",
+      "command": {
+        "name": "search",
+        "argv": ["What changed in the OpenAI Responses API recently?", "--plan"]
+      }
+    },
+    {
+      "id": "web-search-plus",
+      "externalCommand": {
+        "cwd": "../web-search-plus",
+        "bin": "python3",
+        "argv": ["scripts/search.py", "--explain-routing", "-q", "What changed in the OpenAI Responses API recently?"],
+        "json": false
+      }
+    }
+  ],
+  "constraints": {
+    "requiresNetwork": false,
+    "requiredEnvAny": ["PERPLEXITY_API_KEY", "YOU_API_KEY"]
+  },
+  "comparativeMetrics": ["routeCorrectness", "confidenceHonesty", "providerWinRate"],
+  "comparativeExpectations": {
+    "preferredTarget": "web-search-pro",
+    "mustBeatOn": ["routeCorrectness", "confidenceHonesty", "providerWinRate"],
+    "allowedTiesOn": []
+  },
+  "expectedSignals": {
+    "selectedProviderIn": ["perplexity", "you"],
+    "selectionModeIn": ["intent-match"],
+    "confidenceLevelIn": ["medium", "high"],
+    "confidenceLevelNotIn": ["low"]
+  },
+  "scoring": {
+    "threshold": 1,
+    "weights": {
+      "routing": 1
+    }
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "id": "h2h-routing-multilingual-query",
+  "suite": "head-to-head",
+  "description": "Non-Latin queries should route to multilingual search coverage with explicit intent-driven confidence.",
+  "intent": "search",
+  "tags": ["head-to-head", "routing", "multilingual"],
+  "targets": [
+    {
+      "id": "web-search-pro",
+      "command": {
+        "name": "search",
+        "argv": ["最新 AI 搜索路由 评测", "--plan"]
+      }
+    },
+    {
+      "id": "web-search-plus",
+      "externalCommand": {
+        "cwd": "../web-search-plus",
+        "bin": "python3",
+        "argv": ["scripts/search.py", "--explain-routing", "-q", "最新 AI 搜索路由 评测"],
+        "json": false
+      }
+    }
+  ],
+  "constraints": {
+    "requiresNetwork": false,
+    "requiredEnvAll": ["QUERIT_API_KEY"]
+  },
+  "comparativeMetrics": ["routeCorrectness", "confidenceHonesty", "providerWinRate"],
+  "comparativeExpectations": {
+    "preferredTarget": "web-search-pro",
+    "mustBeatOn": ["confidenceHonesty"],
+    "allowedTiesOn": ["routeCorrectness", "providerWinRate"]
+  },
+  "expectedSignals": {
+    "selectedProviderIn": ["querit"],
+    "selectionModeIn": ["intent-match"],
+    "confidenceLevelIn": ["high"],
+    "confidenceLevelNotIn": ["low"]
+  },
+  "scoring": {
+    "threshold": 1,
+    "weights": {
+      "routing": 1
+    }
+  }
+}

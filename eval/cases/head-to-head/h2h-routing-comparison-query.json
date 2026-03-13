@@ -1,0 +1,47 @@
+{
+  "id": "h2h-routing-comparison-query",
+  "suite": "head-to-head",
+  "description": "Comparison-style queries should route to research-oriented providers with honest confidence.",
+  "intent": "search",
+  "tags": ["head-to-head", "routing", "comparison"],
+  "targets": [
+    {
+      "id": "web-search-pro",
+      "command": {
+        "name": "search",
+        "argv": ["Compare OpenAI Responses API vs Assistants API trade-offs", "--plan"]
+      }
+    },
+    {
+      "id": "web-search-plus",
+      "externalCommand": {
+        "cwd": "../web-search-plus",
+        "bin": "python3",
+        "argv": ["scripts/search.py", "--explain-routing", "-q", "Compare OpenAI Responses API vs Assistants API trade-offs"],
+        "json": false
+      }
+    }
+  ],
+  "constraints": {
+    "requiresNetwork": false,
+    "requiredEnvAny": ["TAVILY_API_KEY", "EXA_API_KEY"]
+  },
+  "comparativeMetrics": ["routeCorrectness", "confidenceHonesty", "providerWinRate"],
+  "comparativeExpectations": {
+    "preferredTarget": "web-search-pro",
+    "mustBeatOn": ["confidenceHonesty"],
+    "allowedTiesOn": ["routeCorrectness", "providerWinRate"]
+  },
+  "expectedSignals": {
+    "selectedProviderIn": ["tavily", "exa"],
+    "selectionModeIn": ["intent-match"],
+    "confidenceLevelIn": ["medium", "high"],
+    "confidenceLevelNotIn": ["low"]
+  },
+  "scoring": {
+    "threshold": 1,
+    "weights": {
+      "routing": 1
+    }
+  }
+}

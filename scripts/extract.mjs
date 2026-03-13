@@ -2,8 +2,9 @@
 
 import { fail, readOptionValue } from "./lib/cli-utils.mjs";
 import {
+  buildCacheTelemetry,
   buildExtractCacheKey,
-  readCacheEntry,
+  readCacheRecord,
   writeCacheEntry,
 } from "./lib/cache.mjs";
 import { loadRuntimeConfig } from "./lib/config.mjs";
@@ -15,6 +16,7 @@ import {
 import {
   buildExtractOutput,
   buildPlanOutput,
+  finalizeCommandOutput,
   formatExtractMarkdown,
 } from "./lib/output.mjs";
 import { executeExtractFlow } from "./lib/extract-flow.mjs";
@@ -224,10 +226,17 @@ try {
           }
         : null,
   });
-  const cached = await readCacheEntry("extract", cacheKey, { cwd, config });
+  const cacheRecord = await readCacheRecord("extract", cacheKey, { cwd, config });
 
-  if (cached) {
-    const payload = opts.explainRouting ? { ...cached, routing: serializePlan(plan) } : cached;
+  if (cacheRecord) {
+    const payload = finalizeCommandOutput(cacheRecord.value, {
+      plan,
+      includeRouting: opts.explainRouting,
+      cache: buildCacheTelemetry("extract", {
+        config,
+        record: cacheRecord,
+      }),
+    });
     if (opts.json) {
       console.log(JSON.stringify(payload, null, 2));
     } else {
@@ -247,21 +256,33 @@ try {
     now: Date.now(),
   });
 
+  const cacheWriteNow = Date.now();
   const cachedPayload = buildExtractOutput({
     providerResult: execution.providerResult,
     plan,
     includeRouting: false,
     render: execution.providerResult.render ?? null,
+    cache: buildCacheTelemetry("extract", {
+      config,
+      now: cacheWriteNow,
+      ttlSeconds: config.cache.extractTtlSeconds,
+    }),
   });
   await writeCacheEntry("extract", cacheKey, cachedPayload, {
     cwd,
     config,
     ttlSeconds: config.cache.extractTtlSeconds,
-    now: Date.now(),
+    now: cacheWriteNow,
   });
-  const payload = opts.explainRouting
-    ? { ...cachedPayload, routing: serializePlan(plan) }
-    : cachedPayload;
+  const payload = finalizeCommandOutput(cachedPayload, {
+    plan,
+    includeRouting: opts.explainRouting,
+    cache: buildCacheTelemetry("extract", {
+      config,
+      now: cacheWriteNow,
+      ttlSeconds: config.cache.extractTtlSeconds,
+    }),
+  });
 
   if (opts.json) {
     console.log(JSON.stringify(payload, null, 2));

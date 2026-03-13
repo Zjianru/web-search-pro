@@ -11,6 +11,7 @@ import {
   clearCache,
   getCacheStats,
   readCacheEntry,
+  readCacheRecord,
   writeCacheEntry,
 } from "../scripts/lib/cache.mjs";
 
@@ -69,6 +70,54 @@ test("search cache entries round-trip and expire by TTL", async () => {
     now: 2200,
   });
   assert.equal(expired, null);
+});
+
+test("readCacheRecord exposes metadata for non-expired entries", async () => {
+  const cwd = makeTempDir();
+  const { config } = loadRuntimeConfig({
+    cwd,
+    env: {},
+    overrides: {
+      cache: {
+        dir: ".cache-test",
+        searchTtlSeconds: 60,
+      },
+    },
+  });
+
+  const key = buildSearchCacheKey({
+    providerId: "ddg",
+    request: {
+      query: "OpenClaw bootstrap",
+      count: 3,
+    },
+  });
+  const payload = {
+    schemaVersion: "1.0",
+    command: "search",
+    selectedProvider: "ddg",
+    results: [],
+    failed: [],
+    meta: { query: "OpenClaw bootstrap", count: 0, answer: null },
+  };
+
+  await writeCacheEntry("search", key, payload, {
+    cwd,
+    config,
+    ttlSeconds: config.cache.searchTtlSeconds,
+    now: 10_000,
+  });
+
+  const record = await readCacheRecord("search", key, {
+    cwd,
+    config,
+    now: 15_000,
+  });
+
+  assert.deepEqual(record?.value, payload);
+  assert.equal(record?.key, key);
+  assert.equal(record?.createdAt, 10_000);
+  assert.equal(record?.expiresAt, 70_000);
 });
 
 test("cache stats and clear operate on stored entries", async () => {

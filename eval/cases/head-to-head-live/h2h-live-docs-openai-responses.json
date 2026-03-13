@@ -1,0 +1,50 @@
+{
+  "id": "h2h-live-docs-openai-responses",
+  "suite": "head-to-head-live",
+  "description": "Docs-oriented OpenAI queries should return official grounded documentation with multiple distinct URLs.",
+  "intent": "search",
+  "tags": ["head-to-head", "live", "docs", "citation"],
+  "targets": [
+    {
+      "id": "web-search-pro",
+      "command": {
+        "name": "search",
+        "argv": ["OpenAI Responses API docs", "--preset", "docs"]
+      }
+    },
+    {
+      "id": "web-search-plus",
+      "externalCommand": {
+        "cwd": "../web-search-plus",
+        "bin": "python3",
+        "argv": ["scripts/search.py", "-q", "OpenAI Responses API docs"],
+        "json": false
+      }
+    }
+  ],
+  "constraints": {
+    "requiresNetwork": true,
+    "requiredEnvAny": ["EXA_API_KEY", "SERPER_API_KEY", "YOU_API_KEY", "QUERIT_API_KEY", "TAVILY_API_KEY"]
+  },
+  "comparativeMetrics": ["routeCorrectness", "citationQuality"],
+  "comparativeExpectations": {
+    "preferredTarget": "web-search-pro",
+    "mustBeatOn": [],
+    "allowedTiesOn": ["routeCorrectness", "citationQuality"]
+  },
+  "expectedSignals": {
+    "selectedProviderIn": ["exa", "serper", "you", "querit", "tavily"],
+    "minResults": 2,
+    "mustIncludeDomainsAny": ["platform.openai.com", "openai.com"],
+    "minDistinctUrls": 2,
+    "maxFailed": 0
+  },
+  "scoring": {
+    "threshold": 0.7,
+    "weights": {
+      "routing": 0.2,
+      "coverage": 0.3,
+      "citation": 0.5
+    }
+  }
+}

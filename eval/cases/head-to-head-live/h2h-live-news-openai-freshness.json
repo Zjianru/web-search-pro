@@ -1,0 +1,52 @@
+{
+  "id": "h2h-live-news-openai-freshness",
+  "suite": "head-to-head-live",
+  "description": "Freshness-sensitive OpenAI news queries should return recent grounded results without low-confidence routing.",
+  "intent": "news",
+  "tags": ["head-to-head", "live", "news", "freshness"],
+  "targets": [
+    {
+      "id": "web-search-pro",
+      "command": {
+        "name": "search",
+        "argv": ["OpenAI latest news", "--type", "news"]
+      }
+    },
+    {
+      "id": "web-search-plus",
+      "externalCommand": {
+        "cwd": "../web-search-plus",
+        "bin": "python3",
+        "argv": ["scripts/search.py", "-q", "OpenAI latest news", "--type", "news"],
+        "json": false
+      }
+    }
+  ],
+  "constraints": {
+    "requiresNetwork": true,
+    "requiredEnvAny": ["SERPER_API_KEY", "TAVILY_API_KEY", "YOU_API_KEY", "QUERIT_API_KEY", "SEARXNG_INSTANCE_URL"]
+  },
+  "comparativeMetrics": ["routeCorrectness", "freshness", "citationQuality"],
+  "comparativeExpectations": {
+    "preferredTarget": "web-search-pro",
+    "mustBeatOn": [],
+    "allowedTiesOn": ["routeCorrectness", "freshness", "citationQuality"]
+  },
+  "expectedSignals": {
+    "selectedProviderIn": ["serper", "tavily", "you", "querit", "searxng"],
+    "confidenceLevelNotIn": ["low"],
+    "minResults": 2,
+    "maxResultAgeDays": 30,
+    "minDistinctUrls": 2,
+    "maxFailed": 0
+  },
+  "scoring": {
+    "threshold": 0.7,
+    "weights": {
+      "routing": 0.2,
+      "coverage": 0.2,
+      "freshness": 0.35,
+      "citation": 0.25
+    }
+  }
+}

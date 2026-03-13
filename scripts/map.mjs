@@ -1,11 +1,16 @@
 #!/usr/bin/env node
 
 import { fail, parseCommaList, readOptionValue } from "./lib/cli-utils.mjs";
-import { buildMapCacheKey, readCacheEntry, writeCacheEntry } from "./lib/cache.mjs";
+import {
+  buildCacheTelemetry,
+  buildMapCacheKey,
+  readCacheRecord,
+  writeCacheEntry,
+} from "./lib/cache.mjs";
 import { loadRuntimeConfig } from "./lib/config.mjs";
 import { loadHealthState } from "./lib/health-state.mjs";
 import { mapSite } from "./lib/map-runner.mjs";
-import { buildMapOutput, formatMapMarkdown } from "./lib/output.mjs";
+import { buildMapOutput, finalizeCommandOutput, formatMapMarkdown } from "./lib/output.mjs";
 import { planMapRoute } from "./lib/planner.mjs";
 
 function usage(exitCode = 2) {
@@ -130,15 +135,22 @@ const cacheKey = buildMapCacheKey({
   includePathPrefixes: cli.includePathPrefixes,
   excludePathPrefixes: cli.excludePathPrefixes,
 });
-const cached = await readCacheEntry("map", cacheKey, { cwd, config });
+const cacheRecord = await readCacheRecord("map", cacheKey, { cwd, config });
 
-if (cached) {
+if (cacheRecord) {
+  const payload = finalizeCommandOutput(cacheRecord.value, {
+    plan,
+    cache: buildCacheTelemetry("map", {
+      config,
+      record: cacheRecord,
+    }),
+  });
   if (cli.json) {
-    console.log(JSON.stringify(cached, null, 2));
+    console.log(JSON.stringify(payload, null, 2));
   } else {
-    console.log(formatMapMarkdown(cached));
+    console.log(formatMapMarkdown(payload));
   }
-  process.exit(cached.nodes.length > 0 ? 0 : 1);
+  process.exit(payload.nodes.length > 0 ? 0 : 1);
 }
 
 const result = await mapSite(urls, {
@@ -152,15 +164,21 @@ const result = await mapSite(urls, {
   respectRobotsTxt: config.crawl.respectRobotsTxt,
 });
 
+const cacheWriteNow = Date.now();
 const payload = buildMapOutput({
   result,
   plan,
+  cache: buildCacheTelemetry("map", {
+    config,
+    now: cacheWriteNow,
+    ttlSeconds: config.cache.crawlTtlSeconds,
+  }),
 });
 await writeCacheEntry("map", cacheKey, payload, {
   cwd,
   config,
   ttlSeconds: config.cache.crawlTtlSeconds,
-  now: Date.now(),
+  now: cacheWriteNow,
 });
 
 if (cli.json) {

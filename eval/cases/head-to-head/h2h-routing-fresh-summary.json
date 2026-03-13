@@ -1,0 +1,47 @@
+{
+  "id": "h2h-routing-fresh-summary",
+  "suite": "head-to-head",
+  "description": "Fresh summary queries should route to freshness-aware providers and may legitimately tie across good routes.",
+  "intent": "search",
+  "tags": ["head-to-head", "routing", "freshness"],
+  "targets": [
+    {
+      "id": "web-search-pro",
+      "command": {
+        "name": "search",
+        "argv": ["latest OpenAI news summary", "--plan"]
+      }
+    },
+    {
+      "id": "web-search-plus",
+      "externalCommand": {
+        "cwd": "../web-search-plus",
+        "bin": "python3",
+        "argv": ["scripts/search.py", "--explain-routing", "-q", "latest OpenAI news summary"],
+        "json": false
+      }
+    }
+  ],
+  "constraints": {
+    "requiresNetwork": false,
+    "requiredEnvAny": ["YOU_API_KEY", "SERPER_API_KEY"]
+  },
+  "comparativeMetrics": ["routeCorrectness", "confidenceHonesty", "providerWinRate"],
+  "comparativeExpectations": {
+    "preferredTarget": "web-search-pro",
+    "mustBeatOn": [],
+    "allowedTiesOn": ["routeCorrectness", "confidenceHonesty", "providerWinRate"]
+  },
+  "expectedSignals": {
+    "selectedProviderIn": ["you", "serper"],
+    "selectionModeIn": ["intent-match"],
+    "confidenceLevelIn": ["medium", "high"],
+    "confidenceLevelNotIn": ["low"]
+  },
+  "scoring": {
+    "threshold": 1,
+    "weights": {
+      "routing": 1
+    }
+  }
+}

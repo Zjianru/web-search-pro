@@ -5,6 +5,50 @@ All notable changes to this project will be documented in this file.
 This project uses **product versioning** for the skill surface and **schema versioning** for
 machine-readable payloads.
 
+## [2.1.0] - 2026-03-14
+
+`2.1.0` is the first feature release on top of the `2.0` retrieval-stack line.
+
+It expands the search and routing substrate instead of just widening the repository surface:
+search routing is now more explainable, more provider-complete, and more benchmarkable for agent
+workflows. The ClawHub core profile and compliance story are updated in the same release so the
+registry-facing package still matches the shipped runtime honestly.
+
+### Added
+
+- `bootstrap.mjs` and a machine-readable runtime bootstrap contract for agents
+- `Brave`, `Querit`, `You.com`, `SearXNG`, and `Perplexity / Sonar` provider support
+- Perplexity gateway transport support via native, OpenRouter, Kilo, or custom OpenAI-compatible
+  gateway paths
+- Structured search-route signals with `selectionMode`, `confidence`, and `topSignals`
+- Head-to-head benchmark infrastructure plus bundled `head-to-head` and `head-to-head-live` suites
+- Release-pack documentation for `2.1.0`
+
+### Changed
+
+- Upgraded the planner from basic provider scoring to a `search-router v2` model with structured
+  query signals, compact route transparency, and richer diagnostics
+- Exposed cache hit telemetry and TTL / age information directly in search and retrieval outputs
+- Expanded provider registry semantics to support credential groups, transport-aware capabilities,
+  and provider configuration errors
+- Added agent-facing search UX inputs such as `--type` and `--preset`
+- Updated `README.md`, `SKILL.md`, ClawHub package docs, and generated ClawHub package copy to
+  reflect the current provider set and bootstrap contract
+
+### Benchmarks And Validation
+
+- Added route-first and live head-to-head comparisons against `web-search-plus`
+- Improved freshness scoring so live evaluation no longer over-credits a mostly stale result set
+- Expanded CLI, provider, router, cache, and eval test coverage to support the new routing model
+
+### ClawHub And Compliance
+
+- Kept the ClawHub publish boundary as a generated core profile instead of the repository root
+- Synced generated ClawHub metadata and docs with the new provider set, including gateway-backed
+  Perplexity / Sonar access
+- Kept `node` as the only hard runtime requirement while surfacing optional provider envs and
+  review surfaces more explicitly
+
 ## [2.0.1] - 2026-03-13
 
 `2.0.1` is the compliance and packaging follow-up to `2.0.0`.

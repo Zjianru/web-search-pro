@@ -33,12 +33,124 @@ function formatFederationSummary(federation) {
   return `${federation.providersUsed.join(", ")} (merge=${federation.mergePolicy}; raw=${raw}; deduped=${deduped})`;
 }
 
-function attachRouting(payload, plan, includeRouting) {
-  if (!includeRouting || !plan) {
-    return payload;
+function countCandidatesByStatus(candidates = []) {
+  return candidates.reduce(
+    (acc, candidate) => ({
+      ...acc,
+      [candidate.status]: (acc[candidate.status] ?? 0) + 1,
+    }),
+    {
+      selected: 0,
+      candidate: 0,
+      rejected: 0,
+      skipped: 0,
+    },
+  );
+}
+
+function summarizeCandidate(candidate) {
+  return {
+    providerId: candidate.provider.id,
+    status: candidate.status,
+    score: candidate.score ?? null,
+    reason: candidate.summary || null,
+    reasons: candidate.reasons ?? [],
+    issues: candidate.issues ?? [],
+    selectionMode: candidate.selectionMode ?? null,
+    confidence: candidate.confidence ?? null,
+    confidenceLevel: candidate.confidenceLevel ?? null,
+  };
+}
+
+function summarizeHealthWarnings(candidates = []) {
+  return candidates
+    .filter((candidate) =>
+      ["degraded", "cooldown"].includes(candidate.health?.status),
+    )
+    .map((candidate) => ({
+      providerId: candidate.provider.id,
+      status: candidate.health.status,
+      cooldownUntil: candidate.health.cooldownUntil ?? null,
+      lastError: candidate.health.lastError ?? null,
+      reason:
+        candidate.health.status === "cooldown"
+          ? `${candidate.provider.label} is currently in cooldown`
+          : `${candidate.provider.label} has recent degraded health`,
+    }));
+}
+
+function summarizeFederation(federation) {
+  if (!federation) {
+    return null;
   }
   return {
+    enabled: federation.enabled,
+    triggered: federation.triggered,
+    reason: federation.reason ?? "",
+    fanoutPolicy: federation.fanoutPolicy ?? "disabled",
+    triggerReasons: federation.triggerReasons ?? [],
+    primaryProvider: federation.primaryProvider ?? null,
+    providersPlanned: federation.providersPlanned ?? [],
+    providersUsed: federation.providersUsed ?? [],
+    mergePolicy: federation.mergePolicy ?? null,
+  };
+}
+
+export function buildRoutingSummary(plan, federation = null) {
+  if (!plan) {
+    return null;
+  }
+
+  const selectedProviderId = plan.selected?.provider.id ?? null;
+  const alternativeCandidates = plan.candidates
+    .filter(
+      (candidate) =>
+        candidate.status !== "rejected" &&
+        candidate.status !== "skipped" &&
+        candidate.provider.id !== selectedProviderId,
+    )
+    .slice(0, 3)
+    .map(summarizeCandidate);
+  const blockedProviders = plan.candidates
+    .filter((candidate) => ["rejected", "skipped"].includes(candidate.status))
+    .map(summarizeCandidate);
+
+  return {
+    searchType: plan.request?.searchType ?? null,
+    intentPreset: plan.request?.intentPreset ?? null,
+    selectedProvider: selectedProviderId,
+    selectedReason: plan.selected?.summary ?? plan.error?.message ?? "",
+    selectedReasons: plan.selected?.reasons ?? [],
+    selectionMode: plan.selected?.selectionMode ?? null,
+    confidence: plan.selected?.confidence ?? null,
+    confidenceLevel: plan.selected?.confidenceLevel ?? null,
+    topSignals: plan.selected?.topSignals ?? [],
+    configuredProviders: plan.configuredProviders ?? [],
+    candidateCounts: countCandidatesByStatus(plan.candidates),
+    alternatives: alternativeCandidates,
+    blockedProviders,
+    healthWarnings: summarizeHealthWarnings(plan.candidates),
+    federation: summarizeFederation(federation ?? plan.federation ?? null),
+    error: plan.error?.message ?? null,
+  };
+}
+
+export function finalizeCommandOutput(
+  payload,
+  { plan = null, includeRouting = false, federation = null, cache = null } = {},
+) {
+  const next = {
     ...payload,
+    ...(plan ? { routingSummary: buildRoutingSummary(plan, federation) } : {}),
+    ...(cache ? { cached: cache.hit, cache } : {}),
+  };
+
+  if (!includeRouting || !plan) {
+    return next;
+  }
+
+  return {
+    ...next,
     routing: serializePlan(plan),
   };
 }
@@ -49,8 +161,9 @@ export function buildSearchOutput({
   plan,
   federation = null,
   includeRouting = false,
+  cache = null,
 }) {
-  return attachRouting(
+  return finalizeCommandOutput(
     {
       schemaVersion: SCHEMA_VERSION,
       command: "search",
@@ -61,26 +174,42 @@ export function buildSearchOutput({
       federated: federation,
       meta: {
         query,
+        searchType: plan?.request?.searchType ?? null,
+        intentPreset: plan?.request?.intentPreset ?? null,
         count: providerResult?.results?.length ?? 0,
         answer: providerResult?.answer ?? null,
       },
     },
-    plan,
-    includeRouting,
+    {
+      plan,
+      includeRouting,
+      federation,
+      cache,
+    },
   );
 }
 
 export function buildPlanOutput({ command, plan, meta = {} }) {
-  return {
-    schemaVersion: SCHEMA_VERSION,
-    command,
-    selectedProvider: plan?.selected?.provider.id ?? null,
-    engine: plan?.selected?.provider.id ?? null,
-    results: [],
-    failed: [],
-    meta,
-    routing: serializePlan(plan),
-  };
+  return finalizeCommandOutput(
+    {
+      schemaVersion: SCHEMA_VERSION,
+      command,
+      selectedProvider: plan?.selected?.provider.id ?? null,
+      engine: plan?.selected?.provider.id ?? null,
+      results: [],
+      failed: [],
+      meta: {
+        searchType: plan?.request?.searchType ?? null,
+        intentPreset: plan?.request?.intentPreset ?? null,
+        ...meta,
+      },
+    },
+    {
+      plan,
+      includeRouting: true,
+      federation: plan?.federation ?? null,
+    },
+  );
 }
 
 export function buildExtractOutput({
@@ -89,8 +218,9 @@ export function buildExtractOutput({
   plan,
   includeRouting = false,
   render = null,
+  cache = null,
 }) {
-  return attachRouting(
+  return finalizeCommandOutput(
     {
       schemaVersion: SCHEMA_VERSION,
       command,
@@ -103,12 +233,15 @@ export function buildExtractOutput({
         count: providerResult?.results?.length ?? 0,
       },
     },
-    plan,
-    includeRouting,
+    {
+      plan,
+      includeRouting,
+      cache,
+    },
   );
 }
 
-export function buildCrawlOutput({ result, plan, includeRouting = false }) {
+export function buildCrawlOutput({ result, plan, includeRouting = false, cache = null }) {
   const payload = {
     schemaVersion: SCHEMA_VERSION,
     command: "crawl",
@@ -132,10 +265,10 @@ export function buildCrawlOutput({ result, plan, includeRouting = false }) {
     },
   };
 
-  return attachRouting(payload, plan, includeRouting);
+  return finalizeCommandOutput(payload, { plan, includeRouting, cache });
 }
 
-export function buildMapOutput({ result, plan, includeRouting = false }) {
+export function buildMapOutput({ result, plan, includeRouting = false, cache = null }) {
   const payload = {
     schemaVersion: SCHEMA_VERSION,
     command: "map",
@@ -147,7 +280,7 @@ export function buildMapOutput({ result, plan, includeRouting = false }) {
     meta: result.meta,
   };
 
-  return attachRouting(payload, plan, includeRouting);
+  return finalizeCommandOutput(payload, { plan, includeRouting, cache });
 }
 
 export function buildCapabilitiesOutput(snapshot) {
@@ -190,6 +323,14 @@ export function buildHealthOutput(report) {
   };
 }
 
+export function buildBootstrapOutput(report) {
+  return {
+    schemaVersion: SCHEMA_VERSION,
+    command: "bootstrap",
+    ...report,
+  };
+}
+
 function truncateContent(text = "", maxChars = 800) {
   const value = String(text);
   if (value.length <= maxChars) {
@@ -203,9 +344,17 @@ export function formatSearchMarkdown(payload) {
 
   lines.push(`## Search: ${payload.meta.query}`);
   lines.push(`**Provider**: ${payload.selectedProvider}`);
+  if (payload.routingSummary?.selectedReason) {
+    lines.push(`**Routing**: ${payload.routingSummary.selectedReason}`);
+  }
   const federationSummary = formatFederationSummary(payload.federated);
   if (federationSummary) {
     lines.push(`**Federated**: ${federationSummary}`);
+  }
+  if (payload.cache) {
+    lines.push(
+      `**Cache**: ${payload.cache.hit ? "hit" : "miss"} (ttl remaining: ${payload.cache.ttlRemainingSeconds ?? 0}s)`,
+    );
   }
   lines.push("");
 
@@ -241,6 +390,16 @@ export function formatSearchMarkdown(payload) {
 
 export function formatExtractMarkdown(payload) {
   const lines = [];
+
+  if (payload.routingSummary?.selectedReason) {
+    lines.push(`- Routing: ${payload.routingSummary.selectedReason}`);
+  }
+  if (payload.cache) {
+    lines.push(
+      `- Cache: ${payload.cache.hit ? "hit" : "miss"} (ttl remaining: ${payload.cache.ttlRemainingSeconds ?? 0}s)`,
+    );
+    lines.push("");
+  }
 
   if (payload.routing) {
     lines.push(formatPlanMarkdown(payload.routing));
@@ -287,6 +446,14 @@ export function formatCrawlMarkdown(payload) {
   lines.push(`- Entry URLs: ${payload.meta.entryUrls.join(", ")}`);
   lines.push(`- Visited pages: ${payload.meta.visitedPages}`);
   lines.push(`- Max pages reached: ${payload.meta.maxPagesReached ? "yes" : "no"}`);
+  if (payload.routingSummary?.selectedReason) {
+    lines.push(`- Routing: ${payload.routingSummary.selectedReason}`);
+  }
+  if (payload.cache) {
+    lines.push(
+      `- Cache: ${payload.cache.hit ? "hit" : "miss"} (ttl remaining: ${payload.cache.ttlRemainingSeconds ?? 0}s)`,
+    );
+  }
   lines.push("");
 
   if (payload.routing) {
@@ -322,6 +489,14 @@ export function formatMapMarkdown(payload) {
   lines.push(`- Entry URLs: ${payload.meta.entryUrls.join(", ")}`);
   lines.push(`- Visited pages: ${payload.meta.visitedPages}`);
   lines.push(`- Max pages reached: ${payload.meta.maxPagesReached ? "yes" : "no"}`);
+  if (payload.routingSummary?.selectedReason) {
+    lines.push(`- Routing: ${payload.routingSummary.selectedReason}`);
+  }
+  if (payload.cache) {
+    lines.push(
+      `- Cache: ${payload.cache.hit ? "hit" : "miss"} (ttl remaining: ${payload.cache.ttlRemainingSeconds ?? 0}s)`,
+    );
+  }
   lines.push("");
 
   if (payload.routing) {
@@ -350,6 +525,53 @@ export function formatMapMarkdown(payload) {
     lines.push("");
     for (const failed of payload.failed) {
       lines.push(`- ${failed.url}: ${failed.error}`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+export function formatBootstrapMarkdown(payload) {
+  const lines = [];
+
+  lines.push("# web-search-pro bootstrap");
+  lines.push("");
+  lines.push(`- Status: ${payload.status}`);
+  lines.push(
+    `- Configured providers: ${payload.configuredProviders.length > 0 ? payload.configuredProviders.join(", ") : "none"}`,
+  );
+  lines.push(
+    `- Credentialed providers: ${payload.credentialedProviders.length > 0 ? payload.credentialedProviders.join(", ") : "none"}`,
+  );
+  lines.push(`- No-key baseline: ${payload.routingPolicy.allowNoKeyBaseline ? "enabled" : "disabled"}`);
+  lines.push(`- Federation: ${payload.routingPolicy.enableFederation ? "enabled" : "disabled"}`);
+  lines.push("");
+  lines.push("## Recommended Routes");
+  lines.push("");
+
+  for (const [routeId, route] of Object.entries(payload.recommendedRoutes)) {
+    lines.push(
+      `- ${routeId}: ${route.available ? route.selectedProvider : "unavailable"}${route.reason ? ` (${route.reason})` : ""}`,
+    );
+  }
+
+  if (payload.missingProviderHints.length > 0) {
+    lines.push("");
+    lines.push("## Missing Provider Hints");
+    lines.push("");
+    for (const hint of payload.missingProviderHints) {
+      lines.push(
+        `- ${hint.providerId}: set ${hint.credentialRequirement ?? hint.envVars.join(", ")} to unlock ${hint.unlocks.join(", ")}`,
+      );
+    }
+  }
+
+  if (payload.nextActions.length > 0) {
+    lines.push("");
+    lines.push("## Next Actions");
+    lines.push("");
+    for (const action of payload.nextActions) {
+      lines.push(`- ${action}`);
     }
   }
 

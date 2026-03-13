@@ -26,6 +26,11 @@ function getNow(options = {}) {
   return typeof options.now === "number" ? options.now : Date.now();
 }
 
+function normalizeTtlSeconds(value) {
+  const ttlSeconds = Number.isFinite(value) ? Math.max(0, Math.trunc(value)) : 0;
+  return ttlSeconds;
+}
+
 function getKindDirectory(kind, options = {}) {
   const cwd = options.cwd ?? process.cwd();
   return path.join(resolveCacheDir(options.config, cwd), kind);
@@ -150,7 +155,7 @@ export function buildMapCacheKey(input) {
   return buildCrawlCacheKey(input);
 }
 
-export async function readCacheEntry(kind, key, options = {}) {
+export async function readCacheRecord(kind, key, options = {}) {
   if (!options.config.cache.enabled) {
     return null;
   }
@@ -173,7 +178,12 @@ export async function readCacheEntry(kind, key, options = {}) {
     return null;
   }
 
-  return entry.value;
+  return entry;
+}
+
+export async function readCacheEntry(kind, key, options = {}) {
+  const entry = await readCacheRecord(kind, key, options);
+  return entry?.value ?? null;
 }
 
 export async function writeCacheEntry(kind, key, value, options = {}) {
@@ -184,16 +194,53 @@ export async function writeCacheEntry(kind, key, value, options = {}) {
   await ensureKindDir(kind, options);
 
   const now = getNow(options);
+  const ttlSeconds = normalizeTtlSeconds(options.ttlSeconds);
   const entry = {
     key,
     createdAt: now,
-    expiresAt: now + (options.ttlSeconds ?? 0) * 1000,
+    expiresAt: now + ttlSeconds * 1000,
     value,
   };
 
   const entryPath = getEntryPath(kind, key, options);
   await fs.writeFile(entryPath, JSON.stringify(entry, null, 2));
   return entry;
+}
+
+export function buildCacheTelemetry(kind, options = {}) {
+  const enabled = options.enabled ?? options.config?.cache?.enabled ?? true;
+  const now = getNow(options);
+  const ttlSeconds = normalizeTtlSeconds(options.ttlSeconds);
+  const record = options.record ?? null;
+
+  if (!enabled) {
+    return {
+      enabled: false,
+      hit: false,
+      kind,
+      createdAt: null,
+      expiresAt: null,
+      ageSeconds: null,
+      ttlRemainingSeconds: null,
+      ttlSeconds,
+    };
+  }
+
+  const createdAt = record?.createdAt ?? now;
+  const expiresAt = record?.expiresAt ?? createdAt + ttlSeconds * 1000;
+  const ageSeconds = Math.max(0, Math.floor((now - createdAt) / 1000));
+  const ttlRemainingSeconds = Math.max(0, Math.ceil((expiresAt - now) / 1000));
+
+  return {
+    enabled: true,
+    hit: Boolean(record),
+    kind,
+    createdAt,
+    expiresAt,
+    ageSeconds,
+    ttlRemainingSeconds,
+    ttlSeconds: Math.max(ttlSeconds, Math.round((expiresAt - createdAt) / 1000)),
+  };
 }
 
 export async function getCacheStats(options = {}) {

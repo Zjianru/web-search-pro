@@ -57,6 +57,27 @@ function formatRunMarkdown(payload) {
       lines.push(`  ${entry.blockedReason}`);
     }
   }
+  if (payload.comparativeSummary) {
+    lines.push("");
+    lines.push("## Head-to-Head Summary");
+    lines.push("");
+    lines.push(`- Head-to-head cases: ${payload.comparativeSummary.caseCount}`);
+    lines.push(
+      `- Case winners: ${Object.entries(payload.comparativeSummary.caseWinnerCounts)
+        .map(([key, value]) => `${key}=${value}`)
+        .join(", ")}`,
+    );
+    for (const [targetId, summary] of Object.entries(payload.comparativeSummary.targetSummaries ?? {})) {
+      lines.push(
+        `- ${targetId}: avg=${summary.averageScore !== null ? summary.averageScore.toFixed(3) : "n/a"}, pass=${summary.passCount}, fail=${summary.failCount}`,
+      );
+    }
+    for (const [metric, outcomes] of Object.entries(payload.comparativeSummary.byMetric ?? {})) {
+      lines.push(
+        `- ${metric}: win=${outcomes.win ?? 0}, tie=${outcomes.tie ?? 0}, loss=${outcomes.loss ?? 0}`,
+      );
+    }
+  }
   return lines.join("\n");
 }
 
@@ -100,24 +121,20 @@ if (action === "list") {
     cases: filtered,
   };
   if (json) {
-    console.log(JSON.stringify(payload, null, 2));
+    process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
   } else {
-    console.log(formatListMarkdown(payload));
+    process.stdout.write(`${formatListMarkdown(payload)}\n`);
   }
-  process.exit(0);
-}
-
-if (action === "summary") {
+  process.exitCode = 0;
+} else if (action === "summary") {
   const payload = summarizeEvalInventory(filterEvalCases(cases, { suite, caseId }));
   if (json) {
-    console.log(JSON.stringify(payload, null, 2));
+    process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
   } else {
-    console.log(formatSummaryMarkdown(payload));
+    process.stdout.write(`${formatSummaryMarkdown(payload)}\n`);
   }
-  process.exit(0);
-}
-
-if (action === "run") {
+  process.exitCode = 0;
+} else if (action === "run") {
   const filtered = filterEvalCases(cases, { suite, caseId });
   if (filtered.length === 0) {
     fail("No eval cases matched the requested filter", 1);
@@ -127,11 +144,11 @@ if (action === "run") {
     env: process.env,
   });
   if (json) {
-    console.log(JSON.stringify(payload, null, 2));
+    process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
   } else {
-    console.log(formatRunMarkdown(payload));
+    process.stdout.write(`${formatRunMarkdown(payload)}\n`);
   }
-  process.exit(payload.statusCounts.fail > 0 ? 1 : 0);
+  process.exitCode = payload.statusCounts.fail > 0 ? 1 : 0;
+} else {
+  usage();
 }
-
-usage();

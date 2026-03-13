@@ -2,13 +2,14 @@
 
 import { fail, parseCommaList, readOptionValue } from "./lib/cli-utils.mjs";
 import {
+  buildCacheTelemetry,
   buildCrawlCacheKey,
-  readCacheEntry,
+  readCacheRecord,
   writeCacheEntry,
 } from "./lib/cache.mjs";
 import { loadRuntimeConfig } from "./lib/config.mjs";
 import { crawlSite } from "./lib/crawl-runner.mjs";
-import { buildCrawlOutput, formatCrawlMarkdown } from "./lib/output.mjs";
+import { buildCrawlOutput, finalizeCommandOutput, formatCrawlMarkdown } from "./lib/output.mjs";
 import { loadHealthState } from "./lib/health-state.mjs";
 import { planCrawlRoute } from "./lib/planner.mjs";
 
@@ -152,15 +153,22 @@ const cacheKey = buildCrawlCacheKey({
   includePathPrefixes: cli.includePathPrefixes,
   excludePathPrefixes: cli.excludePathPrefixes,
 });
-const cached = await readCacheEntry("crawl", cacheKey, { cwd, config });
+const cacheRecord = await readCacheRecord("crawl", cacheKey, { cwd, config });
 
-if (cached) {
+if (cacheRecord) {
+  const payload = finalizeCommandOutput(cacheRecord.value, {
+    plan,
+    cache: buildCacheTelemetry("crawl", {
+      config,
+      record: cacheRecord,
+    }),
+  });
   if (cli.json) {
-    console.log(JSON.stringify(cached, null, 2));
+    console.log(JSON.stringify(payload, null, 2));
   } else {
-    console.log(formatCrawlMarkdown(cached));
+    console.log(formatCrawlMarkdown(payload));
   }
-  process.exit(cached.results.length > 0 ? 0 : 1);
+  process.exit(payload.results.length > 0 ? 0 : 1);
 }
 
 const result = await crawlSite(urls, {
@@ -175,15 +183,21 @@ const result = await crawlSite(urls, {
   respectRobotsTxt: config.crawl.respectRobotsTxt,
 });
 
+const cacheWriteNow = Date.now();
 const payload = buildCrawlOutput({
   result,
   plan,
+  cache: buildCacheTelemetry("crawl", {
+    config,
+    now: cacheWriteNow,
+    ttlSeconds: config.cache.crawlTtlSeconds,
+  }),
 });
 await writeCacheEntry("crawl", cacheKey, payload, {
   cwd,
   config,
   ttlSeconds: config.cache.crawlTtlSeconds,
-  now: Date.now(),
+  now: cacheWriteNow,
 });
 
 if (cli.json) {

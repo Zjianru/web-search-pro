@@ -24,8 +24,9 @@ test("skill metadata does not overstate credential requirements", () => {
 
 test("skill documentation explains the no-key baseline and optional provider keys", () => {
   assert.match(content, /No API key is required for the baseline/i);
-  assert.match(content, /Optional provider keys unlock enhanced features/i);
+  assert.match(content, /Optional provider credentials or endpoints unlock enhanced features/i);
   assert.match(content, /doctor\.mjs/);
+  assert.match(content, /bootstrap\.mjs/);
   assert.match(content, /capabilities\.mjs/);
   assert.match(content, /review\.mjs/);
   assert.match(content, /cache\.mjs/);

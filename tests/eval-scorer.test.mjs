@@ -101,6 +101,88 @@ test("eval scorer fails when critical routing and coverage signals do not match"
   );
 });
 
+test("eval scorer supports selectionMode and confidenceLevel routing checks", () => {
+  const caseDefinition = {
+    id: "routing-confidence-001",
+    command: {
+      name: "search",
+    },
+    expectedSignals: {
+      selectedProviderIn: ["perplexity"],
+      selectionModeIn: ["intent-match"],
+      confidenceLevelIn: ["high"],
+      confidenceLevelNotIn: ["low"],
+    },
+    scoring: {
+      threshold: 1,
+      weights: {
+        routing: 1,
+      },
+    },
+  };
+
+  const execution = {
+    exitCode: 0,
+    payload: {
+      selectedProvider: "perplexity",
+      routingSummary: {
+        selectionMode: "intent-match",
+        confidenceLevel: "high",
+      },
+      results: [{ url: "https://example.com" }],
+      failed: [],
+    },
+  };
+
+  const result = scoreEvalCase(caseDefinition, execution);
+  assert.equal(result.status, "pass");
+  assert.equal(result.dimensions.routing.score, 1);
+});
+
+test("eval scorer normalizes web-search-plus explain-routing payloads", () => {
+  const caseDefinition = {
+    id: "routing-plus-normalization-001",
+    command: {
+      name: "search",
+    },
+    expectedSignals: {
+      selectedProviderIn: ["querit"],
+      selectionModeIn: ["intent-match"],
+      confidenceLevelIn: ["medium", "high"],
+      confidenceLevelNotIn: ["low"],
+    },
+    scoring: {
+      threshold: 1,
+      weights: {
+        routing: 1,
+      },
+    },
+  };
+
+  const execution = {
+    exitCode: 0,
+    payload: {
+      query: "latest OpenAI news summary",
+      routing_decision: {
+        provider: "querit",
+        confidence: 0.61,
+        confidence_level: "medium",
+        reason: "moderate_confidence_match",
+      },
+      top_signals: [
+        {
+          matched: "latest",
+          weight: 2.5,
+        },
+      ],
+    },
+  };
+
+  const result = scoreEvalCase(caseDefinition, execution);
+  assert.equal(result.status, "pass");
+  assert.equal(result.dimensions.routing.score, 1);
+});
+
 test("eval scorer supports freshness checks from result dates", () => {
   const today = "2026-03-13T00:00:00.000Z";
   const caseDefinition = {
@@ -135,6 +217,82 @@ test("eval scorer supports freshness checks from result dates", () => {
   const result = scoreEvalCase(caseDefinition, execution, { now: today });
   assert.equal(result.status, "pass");
   assert.equal(result.dimensions.freshness.score, 1);
+});
+
+test("eval scorer supports freshness checks from relative result dates", () => {
+  const now = "2026-03-13T00:00:00.000Z";
+  const caseDefinition = {
+    id: "news-freshness-relative-001",
+    command: {
+      name: "search",
+    },
+    expectedSignals: {
+      maxResultAgeDays: 2,
+    },
+    scoring: {
+      threshold: 1,
+      weights: {
+        freshness: 1,
+      },
+    },
+  };
+
+  const execution = {
+    exitCode: 0,
+    payload: {
+      results: [
+        {
+          url: "https://example.com/news",
+          date: "20 hours ago",
+        },
+      ],
+      failed: [],
+    },
+  };
+
+  const result = scoreEvalCase(caseDefinition, execution, { now });
+  assert.equal(result.status, "pass");
+  assert.equal(result.dimensions.freshness.score, 1);
+});
+
+test("eval scorer fails freshness when only one result is fresh but the set remains mostly stale", () => {
+  const now = "2026-03-13T00:00:00.000Z";
+  const caseDefinition = {
+    id: "news-freshness-mixed-001",
+    command: {
+      name: "search",
+    },
+    expectedSignals: {
+      maxResultAgeDays: 7,
+    },
+    scoring: {
+      threshold: 1,
+      weights: {
+        freshness: 1,
+      },
+    },
+  };
+
+  const execution = {
+    exitCode: 0,
+    payload: {
+      results: [
+        {
+          url: "https://example.com/fresh",
+          publishedDate: "2026-03-10T00:00:00.000Z",
+        },
+        {
+          url: "https://example.com/stale",
+          publishedDate: "2025-01-01T00:00:00.000Z",
+        },
+      ],
+      failed: [],
+    },
+  };
+
+  const result = scoreEvalCase(caseDefinition, execution, { now });
+  assert.equal(result.status, "fail");
+  assert.equal(result.dimensions.freshness.score, 0);
 });
 
 test("eval scorer supports research-specific decomposition, evidence, and uncertainty checks", () => {

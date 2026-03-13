@@ -11,7 +11,7 @@ They exist for different reasons and should not be conflated.
 
 The root cause is not a single scanner false positive. It is a conflict between three facts:
 
-1. The GitHub / local source tree intentionally includes the full `2.0` surface:
+1. The GitHub / local source tree intentionally includes the full `2.1` surface:
    - `render.mjs`
    - `eval.mjs`
    - tests
@@ -39,6 +39,7 @@ The ClawHub profile keeps the core retrieval contract:
 - `map.mjs`
 - `research.mjs`
 - `doctor.mjs`
+- `bootstrap.mjs`
 - `capabilities.mjs`
 - `review.mjs`
 - `cache.mjs`
@@ -75,7 +76,8 @@ That is why federated execution still reports `federated.providersUsed`.
 
 ## Why Optional Env Disclosure Moves Into The Package
 
-The root repository keeps runtime disclosure in `capabilities.mjs` and `review.mjs`.
+The root repository keeps runtime disclosure in `capabilities.mjs`, `doctor.mjs`,
+`bootstrap.mjs`, and `review.mjs`.
 
 The ClawHub package additionally surfaces optional provider env vars in package metadata because
 registry review benefits from static visibility even when those env vars are not hard requirements.

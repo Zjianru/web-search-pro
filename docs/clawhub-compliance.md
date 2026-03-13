@@ -9,7 +9,7 @@ This document explains the current ClawHub / OpenClaw compliance posture of `web
 - the full GitHub / local OpenClaw source tree
 - the generated ClawHub publish package
 
-The full repository keeps the entire `2.0` surface, including browser render, eval, and the local
+The full repository keeps the entire `2.1` surface, including browser render, eval, and the local
 test toolchain. The ClawHub package is intentionally generated as a narrower core profile so the
 published artifact stays closer to what registry review can honestly reason about.
 
@@ -60,6 +60,7 @@ Use:
 
 - `node scripts/capabilities.mjs --json`
 - `node scripts/doctor.mjs --json`
+- `node scripts/bootstrap.mjs --json`
 - `node scripts/review.mjs --json`
 
 Those commands expose:
@@ -67,6 +68,7 @@ Those commands expose:
 - provider matrix
 - configured providers
 - no-key baseline status
+- activation paths such as native / gateway-backed provider lanes
 - federation config summary
 - render lane summary
 - health state, including degraded providers
@@ -128,10 +130,11 @@ This matters for review:
 
 ## Review Summary
 
-The compliance story for `web-search-pro 2.0` is:
+The compliance story for `web-search-pro 2.1` is:
 
 - metadata declares only real hard runtime requirements
 - provider keys are optional and surfaced explicitly at runtime
+- gateway-backed provider paths are disclosed without being overstated as hard requirements
 - no-key behavior is real but bounded
 - network boundaries are explicit
 - browser behavior is optional and inspectable

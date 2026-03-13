@@ -16,14 +16,92 @@ function lower(value) {
   return String(value ?? "").toLowerCase();
 }
 
+function normalizeTopSignals(signals) {
+  if (!Array.isArray(signals)) {
+    return [];
+  }
+  return signals.map((signal) => ({
+    id: signal.id ?? null,
+    label: signal.label ?? signal.matched ?? null,
+    category: signal.category ?? null,
+    delta: signal.delta ?? signal.weight ?? null,
+    evidence: signal.evidence ?? null,
+  }));
+}
+
+function inferSelectionMode(payload, routingSummary, topSignals) {
+  if (routingSummary?.selectionMode) {
+    return routingSummary.selectionMode;
+  }
+
+  const reason = lower(routingSummary?.reason);
+  const autoRouted = routingSummary?.auto_routed;
+  if (autoRouted === false) {
+    return "explicit";
+  }
+  if (reason === "no_available_providers") {
+    return "availability-only";
+  }
+  if (reason === "similar_url_specified") {
+    return "explicit";
+  }
+  if (topSignals.length > 0 || reason.endsWith("_confidence_match")) {
+    return "intent-match";
+  }
+  if (payload.engine && payload.engine === payload.selectedProvider) {
+    return "explicit";
+  }
+  return "default-ranking";
+}
+
+function normalizeRoutingSummary(normalized) {
+  const compact = normalized.routingSummary;
+  if (compact && typeof compact === "object") {
+    return compact;
+  }
+
+  const routing =
+    (normalized.routing && typeof normalized.routing === "object" ? normalized.routing : null) ??
+    (normalized.routing_decision && typeof normalized.routing_decision === "object"
+      ? normalized.routing_decision
+      : null);
+  if (!routing) {
+    return {};
+  }
+
+  const topSignals = normalizeTopSignals(normalized.top_signals ?? routing.top_signals);
+  return {
+    selectedProvider:
+      routing.provider ?? normalized.selected_provider ?? normalized.selectedProvider ?? null,
+    selectionMode: inferSelectionMode(normalized, routing, topSignals),
+    confidence: routing.confidence ?? null,
+    confidenceLevel: routing.confidence_level ?? null,
+    topSignals,
+    selectedReason: routing.reason ?? null,
+  };
+}
+
 function normalizePayload(payload = {}) {
   const normalized = payload && typeof payload === "object" ? payload : {};
+  const routingSummary = normalizeRoutingSummary(normalized);
   return {
-    selectedProvider: normalized.selectedProvider ?? normalized.engine ?? null,
+    selectedProvider:
+      normalized.selectedProvider ??
+      normalized.selected_provider ??
+      routingSummary.selectedProvider ??
+      normalized.routing?.provider ??
+      normalized.routing_decision?.provider ??
+      normalized.engine ??
+      null,
+    routingSummary,
     results: Array.isArray(normalized.results) ? normalized.results : [],
     nodes: Array.isArray(normalized.nodes) ? normalized.nodes : [],
     edges: Array.isArray(normalized.edges) ? normalized.edges : [],
-    failed: Array.isArray(normalized.failed) ? normalized.failed : [],
+    failed: Array.isArray(normalized.failed)
+      ? normalized.failed
+      : Array.isArray(normalized.routing?.fallback_errors)
+        ? normalized.routing.fallback_errors
+        : [],
     topicType: normalized.topicType ?? null,
     topicSignals: Array.isArray(normalized.topicSignals) ? normalized.topicSignals : [],
     researchAxes: Array.isArray(normalized.researchAxes) ? normalized.researchAxes : [],
@@ -38,7 +116,12 @@ function normalizePayload(payload = {}) {
     citations: Array.isArray(normalized.citations) ? normalized.citations : [],
     gapResolutionSummary: normalized.gapResolutionSummary ?? {},
     execution: normalized.execution ?? {},
-    meta: normalized.meta ?? {},
+    meta:
+      normalized.meta && typeof normalized.meta === "object"
+        ? normalized.meta
+        : {
+            query: normalized.query ?? null,
+          },
     summary: normalized.summary ?? {},
   };
 }
@@ -67,6 +150,63 @@ function parseDate(value) {
   }
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function parseRelativeDate(value, now) {
+  const normalized = lower(value).trim();
+  if (!normalized) {
+    return null;
+  }
+  if (normalized === "today") {
+    return new Date(now.getTime());
+  }
+  if (normalized === "yesterday") {
+    return new Date(now.getTime() - 86400000);
+  }
+
+  const match = normalized.match(
+    /^(\d+)\s+(minute|minutes|min|mins|hour|hours|hr|hrs|day|days|week|weeks|month|months|year|years)\s+ago$/,
+  );
+  if (!match) {
+    return null;
+  }
+
+  const amount = Number(match[1]);
+  const unit = match[2];
+  const unitMs =
+    unit.startsWith("min")
+      ? 60000
+      : unit.startsWith("hour") || unit.startsWith("hr")
+        ? 3600000
+        : unit.startsWith("day")
+          ? 86400000
+          : unit.startsWith("week")
+            ? 7 * 86400000
+            : unit.startsWith("month")
+              ? 30 * 86400000
+              : 365 * 86400000;
+
+  return new Date(now.getTime() - amount * unitMs);
+}
+
+function parseResultDate(value, now) {
+  const absolute = parseDate(value);
+  if (absolute) {
+    return absolute;
+  }
+  return parseRelativeDate(value, now);
+}
+
+function computeMedian(values = []) {
+  if (values.length === 0) {
+    return null;
+  }
+  const sorted = [...values].sort((left, right) => left - right);
+  const middle = Math.floor(sorted.length / 2);
+  if (sorted.length % 2 === 1) {
+    return sorted[middle];
+  }
+  return (sorted[middle - 1] + sorted[middle]) / 2;
 }
 
 function uniqueDomains(urls) {
@@ -132,6 +272,45 @@ function buildSignalChecks(caseDefinition, execution, options = {}) {
         !expected.selectedProviderNotIn.includes(payload.selectedProvider),
         expected.selectedProviderNotIn,
         payload.selectedProvider,
+      ),
+    );
+  }
+
+  if (expected.selectionModeIn?.length) {
+    const actual = payload.routingSummary.selectionMode ?? null;
+    checks.push(
+      buildCheck(
+        "routing",
+        "selectionModeIn",
+        expected.selectionModeIn.includes(actual),
+        expected.selectionModeIn,
+        actual,
+      ),
+    );
+  }
+
+  if (expected.confidenceLevelIn?.length) {
+    const actual = payload.routingSummary.confidenceLevel ?? null;
+    checks.push(
+      buildCheck(
+        "routing",
+        "confidenceLevelIn",
+        expected.confidenceLevelIn.includes(actual),
+        expected.confidenceLevelIn,
+        actual,
+      ),
+    );
+  }
+
+  if (expected.confidenceLevelNotIn?.length) {
+    const actual = payload.routingSummary.confidenceLevel ?? null;
+    checks.push(
+      buildCheck(
+        "routing",
+        "confidenceLevelNotIn",
+        !expected.confidenceLevelNotIn.includes(actual),
+        expected.confidenceLevelNotIn,
+        actual,
       ),
     );
   }
@@ -293,17 +472,17 @@ function buildSignalChecks(caseDefinition, execution, options = {}) {
 
   if (expected.maxResultAgeDays !== undefined) {
     const ages = payload.results
-      .map((entry) => parseDate(entry.publishedDate ?? entry.date))
+      .map((entry) => parseResultDate(entry.publishedDate ?? entry.date, now))
       .filter(Boolean)
       .map((date) => Math.floor((now.getTime() - date.getTime()) / 86400000));
-    const youngestAge = ages.length > 0 ? Math.min(...ages) : null;
+    const medianAge = computeMedian(ages);
     checks.push(
       buildCheck(
         "freshness",
         "maxResultAgeDays",
-        youngestAge !== null && youngestAge <= expected.maxResultAgeDays,
+        medianAge !== null && medianAge <= expected.maxResultAgeDays,
         expected.maxResultAgeDays,
-        youngestAge,
+        medianAge,
       ),
     );
   }

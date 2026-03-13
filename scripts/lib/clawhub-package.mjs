@@ -4,8 +4,17 @@ import path from "node:path";
 const OPTIONAL_ENV_DISCLOSURE = {
   TAVILY_API_KEY: "optional — premium deep search, news, and extract",
   EXA_API_KEY: "optional — semantic search and extract fallback",
+  QUERIT_API_KEY: "optional — multilingual AI search with native geo and language filters",
   SERPER_API_KEY: "optional — Google-like search and news",
+  BRAVE_API_KEY: "optional — structured web search aligned with existing OpenClaw setups",
   SERPAPI_API_KEY: "optional — multi-engine search including Baidu",
+  YOU_API_KEY: "optional — LLM-ready web search with freshness and locale support",
+  PERPLEXITY_API_KEY: "optional — native Perplexity Sonar access",
+  OPENROUTER_API_KEY: "optional — gateway access to Perplexity/Sonar via OpenRouter",
+  KILOCODE_API_KEY: "optional — gateway access to Perplexity/Sonar via Kilo",
+  PERPLEXITY_GATEWAY_API_KEY: "optional — custom gateway key for Perplexity/Sonar models",
+  PERPLEXITY_BASE_URL: "optional — required with PERPLEXITY_GATEWAY_API_KEY",
+  SEARXNG_INSTANCE_URL: "optional — self-hosted privacy-first metasearch endpoint",
 };
 
 const OMIT_PREFIXES = Object.freeze([
@@ -241,7 +250,7 @@ function transformPlannerSource(source) {
 }
 
 function buildClawhubReadme() {
-  return `# Web Search Pro 2.0 Core Profile
+  return `# Web Search Pro 2.1 Core Profile
 
 \`web-search-pro\` is a retrieval stack for agents and upstream models.
 This ClawHub package ships the core profile that is most useful to installed agents while keeping
@@ -255,6 +264,7 @@ the registry-facing package narrow and review-friendly.
 - \`map.mjs\`
 - \`research.mjs\`
 - \`doctor.mjs\`
+- \`bootstrap.mjs\`
 - \`capabilities.mjs\`
 - \`review.mjs\`
 - \`cache.mjs\`
@@ -264,13 +274,28 @@ the registry-facing package narrow and review-friendly.
 
 No API key is required for the baseline.
 
-Optional provider keys unlock higher-quality retrieval:
+Optional provider credentials or endpoints unlock higher-quality retrieval:
 
 \`\`\`bash
 TAVILY_API_KEY=tvly-xxxxx
 EXA_API_KEY=exa-xxxxx
+QUERIT_API_KEY=xxxxx
 SERPER_API_KEY=xxxxx
+BRAVE_API_KEY=xxxxx
 SERPAPI_API_KEY=xxxxx
+YOU_API_KEY=xxxxx
+SEARXNG_INSTANCE_URL=https://searx.example.com
+
+# Perplexity / Sonar: choose one transport path
+PERPLEXITY_API_KEY=xxxxx
+OPENROUTER_API_KEY=xxxxx
+OPENROUTER_BASE_URL=https://openrouter.ai/api/v1  # optional override
+KILOCODE_API_KEY=xxxxx
+
+# Or use a custom OpenAI-compatible gateway
+PERPLEXITY_GATEWAY_API_KEY=xxxxx
+PERPLEXITY_BASE_URL=https://gateway.example.com/v1
+PERPLEXITY_MODEL=perplexity/sonar-pro  # accepts sonar* or perplexity/sonar*
 \`\`\`
 
 The baseline remains:
@@ -282,8 +307,12 @@ The baseline remains:
 
 - \`selectedProvider\`
   The primary route selected by the planner.
+- \`routingSummary\`
+  Compact route explanation for agents.
 - \`federated.providersUsed\`
   The provider set that actually returned results when fanout is active.
+- \`cached\` / \`cache\`
+  Cache hit plus TTL telemetry for agents.
 - \`topicType\`, \`topicSignals\`, \`researchAxes\`
   Compact planning summaries for the model-facing research pack.
 
@@ -296,12 +325,13 @@ node scripts/crawl.mjs "https://example.com/docs" --depth 2 --max-pages 10 --jso
 node scripts/map.mjs "https://example.com/docs" --depth 2 --max-pages 50 --json
 node scripts/research.mjs "OpenClaw search skill landscape" --plan --json
 node scripts/doctor.mjs --json
+node scripts/bootstrap.mjs --json
 node scripts/review.mjs --json
 \`\`\`
 
 ## Why This Is A Core Profile
 
-The GitHub repository contains the full \`2.0\` source tree, including extra local-only developer
+The GitHub repository contains the full \`2.1\` source tree, including extra local-only developer
 surfaces and validation tooling. The ClawHub publish package intentionally keeps the installed
 artifact smaller so the registry package stays honest about its runtime shape.
 
@@ -317,7 +347,7 @@ function buildClawhubSkillMarkdown() {
       requires: {
         bins: ["node"],
         env: OPTIONAL_ENV_DISCLOSURE,
-        note: "No API key is required for the baseline. Optional provider keys widen retrieval coverage.",
+        note: "No API key is required for the baseline. Optional provider credentials or endpoints widen retrieval coverage.",
       },
     },
   };
@@ -325,14 +355,15 @@ function buildClawhubSkillMarkdown() {
   return `---
 name: web-search-pro
 description: |
-  Core retrieval stack for AI agents. Ships search, extract, crawl, map, research, diagnostics,
-  and review surfaces with a no-key baseline plus optional Tavily, Exa, Serper, and SerpAPI
-  enhancements.
+  Explainable web retrieval for AI agents with a no-key baseline plus search, extract, crawl,
+  map, research, bootstrap, diagnostics, and review surfaces.
+  Optional Tavily, Exa, Querit, Serper, Brave, SerpAPI, You.com, SearXNG, and Perplexity /
+  Sonar providers widen coverage, freshness, and answer-first routing.
 homepage: https://github.com/Zjianru/web-search-pro
 metadata: ${JSON.stringify(metadata)}
 ---
 
-# Web Search Pro 2.0 Core Profile
+# Web Search Pro 2.1 Core Profile
 
 This ClawHub package publishes the core retrieval profile of \`web-search-pro\`.
 
@@ -344,6 +375,7 @@ Included commands:
 - \`map.mjs\`
 - \`research.mjs\`
 - \`doctor.mjs\`
+- \`bootstrap.mjs\`
 - \`capabilities.mjs\`
 - \`review.mjs\`
 - \`cache.mjs\`
@@ -353,8 +385,12 @@ Key semantics:
 
 - \`selectedProvider\`
   The primary route chosen by the planner.
+- \`routingSummary\`
+  Compact route explanation for agents.
 - \`federated.providersUsed\`
   The providers that actually returned results when fanout is active.
+- \`cached\` / \`cache\`
+  Cache hit plus TTL telemetry for agents.
 - \`topicType\`, \`topicSignals\`, \`researchAxes\`
   Structured planning summaries for the model-facing research pack.
 
@@ -364,13 +400,28 @@ Baseline:
 - \`ddg\` is best-effort no-key search.
 - \`fetch\` is the no-key extract / crawl / map fallback.
 
-Optional provider keys unlock stronger coverage:
+Optional provider credentials or endpoints unlock stronger coverage:
 
 \`\`\`bash
 TAVILY_API_KEY=tvly-xxxxx
 EXA_API_KEY=exa-xxxxx
+QUERIT_API_KEY=xxxxx
 SERPER_API_KEY=xxxxx
+BRAVE_API_KEY=xxxxx
 SERPAPI_API_KEY=xxxxx
+YOU_API_KEY=xxxxx
+SEARXNG_INSTANCE_URL=https://searx.example.com
+
+# Perplexity / Sonar: choose one transport path
+PERPLEXITY_API_KEY=xxxxx
+OPENROUTER_API_KEY=xxxxx
+OPENROUTER_BASE_URL=https://openrouter.ai/api/v1  # optional override
+KILOCODE_API_KEY=xxxxx
+
+# Or use a custom OpenAI-compatible gateway
+PERPLEXITY_GATEWAY_API_KEY=xxxxx
+PERPLEXITY_BASE_URL=https://gateway.example.com/v1
+PERPLEXITY_MODEL=perplexity/sonar-pro  # accepts sonar* or perplexity/sonar*
 \`\`\`
 
 Review and diagnostics:
@@ -378,6 +429,7 @@ Review and diagnostics:
 \`\`\`bash
 node {baseDir}/scripts/capabilities.mjs --json
 node {baseDir}/scripts/doctor.mjs --json
+node {baseDir}/scripts/bootstrap.mjs --json
 node {baseDir}/scripts/review.mjs --json
 \`\`\`
 `;
@@ -410,8 +462,17 @@ The following env vars are optional and widen retrieval quality:
 
 - \`TAVILY_API_KEY\`
 - \`EXA_API_KEY\`
+- \`QUERIT_API_KEY\`
 - \`SERPER_API_KEY\`
+- \`BRAVE_API_KEY\`
 - \`SERPAPI_API_KEY\`
+- \`YOU_API_KEY\`
+- \`PERPLEXITY_API_KEY\`
+- \`OPENROUTER_API_KEY\`
+- \`KILOCODE_API_KEY\`
+- \`PERPLEXITY_GATEWAY_API_KEY\`
+- \`PERPLEXITY_BASE_URL\`
+- \`SEARXNG_INSTANCE_URL\`
 
 No API key is required for the baseline.
 
@@ -442,12 +503,14 @@ Use:
 
 - \`node scripts/capabilities.mjs --json\`
 - \`node scripts/doctor.mjs --json\`
+- \`node scripts/bootstrap.mjs --json\`
 - \`node scripts/review.mjs --json\`
 
 These commands expose:
 
 - configured providers
 - no-key baseline status
+- activation paths such as native / gateway-backed provider lanes
 - federated retrieval summary
 - provider health and degradation
 `;

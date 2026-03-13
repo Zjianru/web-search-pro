@@ -13,14 +13,19 @@ function buildWarnings({
   const warnings = [];
 
   if (credentialedProviders.length === 0) {
-    warnings.push("No provider API keys detected. Running on the no-key baseline only.");
+    warnings.push("No provider credentials detected. Running on the no-key baseline only.");
   }
   if (!availableFeatures.deepSearch) {
     warnings.push("Deep search is unavailable without TAVILY_API_KEY or EXA_API_KEY.");
   }
   if (!availableFeatures.newsSearch) {
     warnings.push(
-      "News search is unavailable without SERPER_API_KEY, TAVILY_API_KEY, or SERPAPI_API_KEY.",
+      "News search is unavailable without SERPER_API_KEY, TAVILY_API_KEY, SERPAPI_API_KEY, YOU_API_KEY, or SEARXNG_INSTANCE_URL.",
+    );
+  }
+  if (!availableFeatures.localeFiltering) {
+    warnings.push(
+      "Locale-aware search is unavailable without SERPER_API_KEY, SERPAPI_API_KEY, YOU_API_KEY, BRAVE_API_KEY, or QUERIT_API_KEY.",
     );
   }
   if (!availableFeatures.map) {

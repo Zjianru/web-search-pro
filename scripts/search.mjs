@@ -6,7 +6,12 @@ import {
   readOptionValue,
   validateDateStr,
 } from "./lib/cli-utils.mjs";
-import { buildSearchCacheKey, readCacheEntry, writeCacheEntry } from "./lib/cache.mjs";
+import {
+  buildCacheTelemetry,
+  buildSearchCacheKey,
+  readCacheRecord,
+  writeCacheEntry,
+} from "./lib/cache.mjs";
 import { loadRuntimeConfig } from "./lib/config.mjs";
 import { executeFederatedSearch } from "./lib/federated-search.mjs";
 import {
@@ -17,6 +22,7 @@ import {
 import {
   buildPlanOutput,
   buildSearchOutput,
+  finalizeCommandOutput,
   formatSearchMarkdown,
 } from "./lib/output.mjs";
 import {
@@ -25,9 +31,15 @@ import {
   requireSelectedRoute,
   serializePlan,
 } from "./lib/planner.mjs";
+import { getProvider, listProviders } from "./lib/providers.mjs";
 
 const SEARCH_ENGINES = new Set(["google", "bing", "baidu", "yandex", "duckduckgo"]);
-const ENGINE_NAMES = new Set(["tavily", "exa", "serper", "serpapi", "ddg"]);
+const SEARCH_TYPES = new Set(["web", "news"]);
+const INTENT_PRESETS = new Set(["general", "code", "company", "docs", "research"]);
+const SEARCH_PROVIDER_IDS = listProviders()
+  .filter((provider) => provider.capabilities.search)
+  .map((provider) => provider.id);
+const ENGINE_NAMES = new Set(SEARCH_PROVIDER_IDS);
 
 function usage(exitCode = 2) {
   console.error(`web-search-pro — Multi-engine AI search with full parameter control
@@ -36,7 +48,9 @@ Usage:
   search.mjs "query" [options]
 
 Options:
-  --engine <name>           Force engine: tavily|exa|serper|serpapi|ddg (default: auto)
+  --engine <name>           Force engine: ${SEARCH_PROVIDER_IDS.join("|")} (default: auto)
+  --type <name>             Search type: web|news (default: web)
+  --preset <name>           Intent preset: general|code|company|docs|research
   -n <count>                Number of results (default: 5)
   --deep                    Deep/advanced search mode (Tavily/Exa only)
   --news                    News search mode (Tavily/Serper/SerpAPI only)
@@ -57,23 +71,41 @@ Environment variables:
   WEB_SEARCH_PRO_CONFIG     Optional path to config.json
   TAVILY_API_KEY            Tavily API key
   EXA_API_KEY               Exa API key
+  QUERIT_API_KEY            Querit API key
   SERPER_API_KEY            Serper API key
-  SERPAPI_API_KEY           SerpAPI key`);
+  BRAVE_API_KEY             Brave Search API key
+  SERPAPI_API_KEY           SerpAPI key
+  YOU_API_KEY               You.com API key
+  SEARXNG_INSTANCE_URL      SearXNG instance URL
+  PERPLEXITY_API_KEY        Native Perplexity Sonar API key
+  OPENROUTER_API_KEY        OpenRouter key for Perplexity/Sonar gateway access
+  OPENROUTER_BASE_URL       Optional override for OpenRouter-compatible base URL
+  KILOCODE_API_KEY          Kilo gateway key for Perplexity/Sonar access
+  PERPLEXITY_GATEWAY_API_KEY  Custom gateway key for Perplexity/Sonar models
+  PERPLEXITY_BASE_URL       Required with PERPLEXITY_GATEWAY_API_KEY
+  PERPLEXITY_MODEL          Optional Sonar model override (sonar* or perplexity/sonar*)`);
   process.exit(exitCode);
 }
 
 function validateOptions(options) {
+  const effectiveNews = options.news || options.searchType === "news";
   if (options.engine && !ENGINE_NAMES.has(options.engine)) {
-    fail(`Unknown engine: ${options.engine}. Available: tavily, exa, serper, serpapi, ddg`);
+    fail(`Unknown engine: ${options.engine}. Available: ${SEARCH_PROVIDER_IDS.join(", ")}`);
   }
   if (!Number.isInteger(options.count) || options.count < 1) {
     fail("-n must be a positive integer");
   }
+  if (options.searchType && !SEARCH_TYPES.has(options.searchType)) {
+    fail("--type must be one of: web, news");
+  }
+  if (options.intentPreset && !INTENT_PRESETS.has(options.intentPreset)) {
+    fail("--preset must be one of: general, code, company, docs, research");
+  }
   if (options.days !== null && (!Number.isInteger(options.days) || options.days < 1)) {
     fail("--days must be a positive integer");
   }
-  if (options.days !== null && !options.news) {
-    fail("--days can only be used with --news");
+  if (options.days !== null && !effectiveNews) {
+    fail("--days can only be used with --news or --type news");
   }
   if (options.timeRange) {
     const validRanges = new Set(["day", "week", "month", "year"]);
@@ -93,15 +125,26 @@ function validateOptions(options) {
   if (options.searchEngine && !SEARCH_ENGINES.has(options.searchEngine)) {
     fail("--search-engine must be one of: google, bing, baidu, yandex, duckduckgo");
   }
-  if (options.searchEngine && options.engine && options.engine !== "serpapi") {
-    fail("--search-engine can only be used with --engine serpapi");
+  if (options.searchType === "web" && options.news) {
+    fail("--type web conflicts with --news");
   }
-  if (
-    (options.country || options.lang) &&
-    options.engine &&
-    !["serper", "serpapi"].includes(options.engine)
-  ) {
-    fail("--country/--lang can only be used with --engine serper or --engine serpapi");
+  if (options.searchEngine && options.engine) {
+    const provider = getProvider(options.engine);
+    if (!provider?.capabilities.subEngines.includes(options.searchEngine)) {
+      fail(`--search-engine ${options.searchEngine} is not supported by --engine ${options.engine}`);
+    }
+  }
+  if (options.country && options.engine) {
+    const provider = getProvider(options.engine);
+    if (!provider?.capabilities.localeFiltering) {
+      fail(`--country is not supported by --engine ${options.engine}`);
+    }
+  }
+  if (options.lang && options.engine) {
+    const provider = getProvider(options.engine);
+    if (!provider?.capabilities.localeFiltering) {
+      fail(`--lang is not supported by --engine ${options.engine}`);
+    }
   }
 }
 
@@ -112,6 +155,8 @@ if (args.length === 0) {
 
 const opts = {
   engine: null,
+  searchType: "web",
+  intentPreset: "general",
   count: 5,
   deep: false,
   news: false,
@@ -142,6 +187,14 @@ for (let i = 0; i < args.length; i++) {
       opts.engine = readOptionValue(args, i, "--engine");
       i++;
       break;
+    case "--type":
+      opts.searchType = readOptionValue(args, i, "--type");
+      i++;
+      break;
+    case "--preset":
+      opts.intentPreset = readOptionValue(args, i, "--preset");
+      i++;
+      break;
     case "-n":
       opts.count = Number.parseInt(readOptionValue(args, i, "-n"), 10);
       i++;
@@ -151,6 +204,7 @@ for (let i = 0; i < args.length; i++) {
       break;
     case "--news":
       opts.news = true;
+      opts.searchType = "news";
       break;
     case "--days":
       opts.days = Number.parseInt(readOptionValue(args, i, "--days"), 10);
@@ -269,10 +323,18 @@ try {
     },
     federation: plan.federation,
   });
-  const cached = await readCacheEntry("search", cacheKey, { cwd, config });
+  const cacheRecord = await readCacheRecord("search", cacheKey, { cwd, config });
 
-  if (cached) {
-    const payload = opts.explainRouting ? { ...cached, routing: serializePlan(plan) } : cached;
+  if (cacheRecord) {
+    const payload = finalizeCommandOutput(cacheRecord.value, {
+      plan,
+      includeRouting: opts.explainRouting,
+      federation: cacheRecord.value.federated ?? plan.federation,
+      cache: buildCacheTelemetry("search", {
+        config,
+        record: cacheRecord,
+      }),
+    });
     if (opts.json) {
       console.log(JSON.stringify(payload, null, 2));
     } else {
@@ -297,22 +359,35 @@ try {
     now: Date.now(),
   });
 
+  const cacheWriteNow = Date.now();
   const cachedPayload = buildSearchOutput({
     query,
     providerResult: execution.result,
     plan,
     federation: execution.federation,
     includeRouting: false,
+    cache: buildCacheTelemetry("search", {
+      config,
+      now: cacheWriteNow,
+      ttlSeconds: config.cache.searchTtlSeconds,
+    }),
   });
   await writeCacheEntry("search", cacheKey, cachedPayload, {
     cwd,
     config,
     ttlSeconds: config.cache.searchTtlSeconds,
-    now: Date.now(),
+    now: cacheWriteNow,
   });
-  const payload = opts.explainRouting
-    ? { ...cachedPayload, routing: serializePlan(plan) }
-    : cachedPayload;
+  const payload = finalizeCommandOutput(cachedPayload, {
+    plan,
+    includeRouting: opts.explainRouting,
+    federation: execution.federation,
+    cache: buildCacheTelemetry("search", {
+      config,
+      now: cacheWriteNow,
+      ttlSeconds: config.cache.searchTtlSeconds,
+    }),
+  });
 
   if (opts.json) {
     console.log(JSON.stringify(payload, null, 2));

@@ -20,7 +20,27 @@ test("news routing prefers Serper when available", () => {
   );
 
   assert.equal(plan.selected?.provider.id, "serper");
-  assert.match(plan.selected?.summary ?? "", /preferred for news/i);
+  assert.equal(plan.selected?.selectionMode, "intent-match");
+  assert.equal(
+    plan.selected?.topSignals?.some((signal) => signal.category === "freshness"),
+    true,
+  );
+});
+
+test("searchType news maps into news-capable routing", () => {
+  const plan = planSearchRoute(
+    {
+      query: "OpenClaw latest news",
+      mode: "search",
+      searchType: "news",
+      count: 5,
+    },
+    { env: envWith("SERPER_API_KEY", "TAVILY_API_KEY") },
+  );
+
+  assert.equal(plan.request.searchType, "news");
+  assert.equal(plan.request.news, true);
+  assert.equal(plan.selected?.provider.id, "serper");
 });
 
 test("basic search falls back to ddg when no provider keys exist", () => {
@@ -80,7 +100,8 @@ test("Baidu routing is pinned to SerpAPI", () => {
   );
 
   assert.equal(plan.selected?.provider.id, "serpapi");
-  assert.match(plan.selected?.summary ?? "", /sub-engine/i);
+  assert.equal(plan.selected?.selectionMode, "hard-requirement");
+  assert.equal(plan.diagnostics?.limitedByAvailability, false);
 });
 
 test("non-google SerpAPI sub-engines reject news mode explicitly", () => {
@@ -112,6 +133,229 @@ test("domain filtering prefers native providers over query-operator providers", 
 
   assert.equal(plan.selected?.provider.id, "exa");
   assert.match(plan.selected?.summary ?? "", /native domain filtering/i);
+});
+
+test("question-style queries can prefer the answer-first provider", () => {
+  const plan = planSearchRoute(
+    {
+      query: "What is OpenClaw routing?",
+      mode: "search",
+      count: 5,
+    },
+    { env: envWith("PERPLEXITY_API_KEY", "SERPER_API_KEY") },
+  );
+
+  assert.equal(plan.selected?.provider.id, "perplexity");
+  assert.match(plan.selected?.summary ?? "", /direct answer/i);
+  assert.equal(plan.selected?.selectionMode, "intent-match");
+  assert.equal(plan.selected?.confidenceLevel, "high");
+  assert.equal(typeof plan.selected?.confidence, "number");
+  assert.equal((plan.selected?.confidence ?? 0) > 0.6, true);
+  assert.equal(
+    plan.selected?.topSignals?.some((signal) => signal.category === "direct-answer"),
+    true,
+  );
+  assert.equal(
+    plan.diagnostics?.signalMatches?.some((signal) => signal.category === "direct-answer"),
+    true,
+  );
+});
+
+test("native Perplexity can satisfy date-range requests", () => {
+  const plan = planSearchRoute(
+    {
+      query: "What changed in the Responses API recently?",
+      mode: "search",
+      fromDate: "2026-03-01",
+      toDate: "2026-03-13",
+      count: 5,
+    },
+    { env: envWith("PERPLEXITY_API_KEY") },
+  );
+
+  assert.equal(plan.selected?.provider.id, "perplexity");
+  assert.equal(plan.error, null);
+  assert.equal(plan.selected?.provider.capabilities.dateRange, true);
+  assert.equal(plan.selected?.provider.capabilities.timeRange, true);
+});
+
+test("privacy-oriented queries can prefer SearXNG when configured", () => {
+  const plan = planSearchRoute(
+    {
+      query: "private meta search without tracking",
+      mode: "search",
+      count: 5,
+    },
+    { env: envWith("SEARXNG_INSTANCE_URL", "SERPER_API_KEY") },
+  );
+
+  assert.equal(plan.selected?.provider.id, "searxng");
+  assert.match(plan.selected?.summary ?? "", /privacy/i);
+});
+
+test("summary-oriented current queries can prefer You.com", () => {
+  const plan = planSearchRoute(
+    {
+      query: "summarize current AI regulation updates",
+      mode: "search",
+      count: 5,
+    },
+    { env: envWith("YOU_API_KEY", "SERPER_API_KEY") },
+  );
+
+  assert.equal(plan.selected?.provider.id, "you");
+  assert.match(plan.selected?.summary ?? "", /LLM-ready|summary-oriented/i);
+  assert.equal(plan.selected?.selectionMode, "intent-match");
+  assert.equal(
+    plan.selected?.topSignals?.some((signal) => signal.category === "freshness"),
+    true,
+  );
+});
+
+test("multilingual comparison queries can prefer Querit when configured", () => {
+  const plan = planSearchRoute(
+    {
+      query: "比较 多语言 AI 搜索 引擎",
+      mode: "search",
+      count: 5,
+    },
+    { env: envWith("QUERIT_API_KEY", "SERPER_API_KEY") },
+  );
+
+  assert.equal(plan.selected?.provider.id, "querit");
+  assert.equal(plan.selected?.selectionMode, "intent-match");
+  assert.equal(
+    plan.selected?.topSignals?.some((signal) => signal.category === "multilingual"),
+    true,
+  );
+});
+
+test("docs preset biases routing toward docs-capable providers without forcing the engine", () => {
+  const plan = planSearchRoute(
+    {
+      query: "OpenClaw routing reference",
+      mode: "search",
+      intentPreset: "docs",
+      count: 5,
+    },
+    { env: envWith("EXA_API_KEY", "SERPER_API_KEY") },
+  );
+
+  assert.equal(plan.request.intentPreset, "docs");
+  assert.equal(plan.selected?.provider.id, "exa");
+  assert.equal(plan.selected?.selectionMode, "intent-match");
+  assert.equal(
+    plan.diagnostics?.signalMatches?.some((signal) => signal.category === "docs"),
+    true,
+  );
+});
+
+test("code preset can bias routing toward provider coverage useful for implementation lookups", () => {
+  const plan = planSearchRoute(
+    {
+      query: "React useEffectEvent examples",
+      mode: "search",
+      intentPreset: "code",
+      count: 5,
+    },
+    { env: envWith("EXA_API_KEY", "BRAVE_API_KEY") },
+  );
+
+  assert.equal(plan.request.intentPreset, "code");
+  assert.equal(plan.selected?.provider.id, "exa");
+  assert.equal(
+    plan.selected?.topSignals?.some((signal) => signal.category === "code"),
+    true,
+  );
+});
+
+test("discovery-style queries can prefer Brave when configured", () => {
+  const plan = planSearchRoute(
+    {
+      query: "best open source agent tools",
+      mode: "search",
+      count: 5,
+    },
+    { env: envWith("BRAVE_API_KEY", "SERPAPI_API_KEY") },
+  );
+
+  assert.equal(plan.selected?.provider.id, "brave");
+  assert.equal(plan.selected?.selectionMode, "intent-match");
+  assert.equal(
+    plan.selected?.topSignals?.some((signal) => signal.category === "discovery"),
+    true,
+  );
+});
+
+test("explicit engine selection is marked as an explicit route", () => {
+  const plan = planSearchRoute(
+    {
+      query: "OpenClaw routing",
+      mode: "search",
+      engine: "serpapi",
+      count: 5,
+    },
+    { env: envWith("SERPAPI_API_KEY", "EXA_API_KEY") },
+  );
+
+  assert.equal(plan.selected?.provider.id, "serpapi");
+  assert.equal(plan.selected?.selectionMode, "explicit");
+  assert.equal(plan.selected?.confidenceLevel, "high");
+});
+
+test("news plus days is classified as a hard-requirement route", () => {
+  const plan = planSearchRoute(
+    {
+      query: "OpenClaw latest news",
+      mode: "search",
+      news: true,
+      days: 7,
+      count: 5,
+    },
+    { env: envWith("TAVILY_API_KEY", "SERPER_API_KEY") },
+  );
+
+  assert.equal(plan.selected?.provider.id, "tavily");
+  assert.equal(plan.selected?.selectionMode, "hard-requirement");
+  assert.equal(plan.selected?.confidenceLevel, "high");
+});
+
+test("news requests still use freshness signals after filtering eligible providers", () => {
+  const plan = planSearchRoute(
+    {
+      query: "latest AI news summary",
+      mode: "search",
+      news: true,
+      count: 5,
+    },
+    { env: envWith("TAVILY_API_KEY", "SERPER_API_KEY", "YOU_API_KEY") },
+  );
+
+  assert.equal(plan.selected?.provider.id, "you");
+  assert.equal(plan.selected?.selectionMode, "intent-match");
+  assert.equal(
+    plan.selected?.topSignals?.some((signal) => signal.category === "freshness"),
+    true,
+  );
+});
+
+test("locale-constrained multilingual queries still use query signals after filtering", () => {
+  const plan = planSearchRoute(
+    {
+      query: "最新 AI 搜索路由 评测",
+      mode: "search",
+      lang: "zh",
+      count: 5,
+    },
+    { env: envWith("QUERIT_API_KEY", "SERPER_API_KEY", "BRAVE_API_KEY", "YOU_API_KEY") },
+  );
+
+  assert.equal(plan.selected?.provider.id, "querit");
+  assert.equal(plan.selected?.selectionMode, "intent-match");
+  assert.equal(
+    plan.selected?.topSignals?.some((signal) => signal.category === "multilingual"),
+    true,
+  );
 });
 
 test("extract routing prefers Tavily and falls back to Exa", () => {
@@ -286,4 +530,114 @@ test("health cooldown lowers provider priority when alternatives exist", () => {
 
   assert.equal(plan.selected?.provider.id, "tavily");
   assert.match(plan.candidates[1]?.summary ?? "", /cooldown/i);
+  assert.equal(plan.selected?.selectionMode, "fallback");
+  assert.equal(plan.diagnostics?.healthAdjusted, true);
+});
+
+test("availability-only fallback is reported honestly for the no-key baseline", () => {
+  const plan = planSearchRoute(
+    {
+      query: "OpenClaw web search",
+      mode: "search",
+      count: 5,
+    },
+    { env: {} },
+  );
+
+  assert.equal(plan.selected?.provider.id, "ddg");
+  assert.equal(plan.selected?.selectionMode, "availability-only");
+  assert.equal(plan.selected?.confidenceLevel, "low");
+  assert.equal(plan.diagnostics?.limitedByAvailability, true);
+  assert.deepEqual(plan.selected?.topSignals ?? [], []);
+});
+
+test("current-change questions favor answer-first providers even with premium search providers configured", () => {
+  const plan = planSearchRoute(
+    {
+      query: "What changed in the OpenAI Responses API recently?",
+      mode: "search",
+      count: 5,
+    },
+    {
+      env: envWith(
+        "TAVILY_API_KEY",
+        "EXA_API_KEY",
+        "QUERIT_API_KEY",
+        "SERPER_API_KEY",
+        "YOU_API_KEY",
+        "PERPLEXITY_API_KEY",
+      ),
+    },
+  );
+
+  assert.equal(plan.selected?.provider.id, "perplexity");
+  assert.equal(plan.selected?.selectionMode, "intent-match");
+  assert.notEqual(plan.selected?.confidenceLevel, "low");
+});
+
+test("non-Latin queries favor Querit even with premium search providers configured", () => {
+  const plan = planSearchRoute(
+    {
+      query: "最新 AI 搜索路由 评测",
+      mode: "search",
+      count: 5,
+    },
+    {
+      env: envWith(
+        "TAVILY_API_KEY",
+        "EXA_API_KEY",
+        "QUERIT_API_KEY",
+        "SERPER_API_KEY",
+        "YOU_API_KEY",
+        "PERPLEXITY_API_KEY",
+      ),
+    },
+  );
+
+  assert.equal(plan.selected?.provider.id, "querit");
+  assert.equal(plan.selected?.selectionMode, "intent-match");
+  assert.equal(plan.selected?.confidenceLevel, "high");
+});
+
+test("date-range requests reject providers that do not advertise date filters", () => {
+  const plan = planSearchRoute(
+    {
+      query: "OpenClaw release notes",
+      mode: "search",
+      fromDate: "2026-01-01",
+      toDate: "2026-01-31",
+      count: 5,
+    },
+    { env: envWith("QUERIT_API_KEY", "BRAVE_API_KEY") },
+  );
+
+  assert.equal(plan.selected?.provider.id, "brave");
+  assert.equal(
+    plan.candidates.some(
+      (candidate) =>
+        candidate.provider.id === "querit" &&
+        candidate.issues.some((issue) => issue.includes("does not support --from/--to")),
+    ),
+    true,
+  );
+});
+
+test("locale-constrained single-provider routes stay honest about availability pressure", () => {
+  const plan = planSearchRoute(
+    {
+      query: "最新 AI 搜索路由 评测",
+      mode: "search",
+      lang: "zh",
+      count: 5,
+    },
+    { env: envWith("QUERIT_API_KEY") },
+  );
+
+  assert.equal(plan.selected?.provider.id, "querit");
+  assert.equal(plan.selected?.selectionMode, "availability-only");
+  assert.equal(plan.diagnostics?.limitedByAvailability, true);
+  assert.equal(
+    plan.selected?.topSignals?.some((signal) => signal.category === "multilingual"),
+    true,
+  );
 });

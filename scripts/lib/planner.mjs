@@ -1,20 +1,31 @@
 import { DEFAULT_CONFIG } from "./config.mjs";
 import { buildFederationPlan } from "./federated-search.mjs";
 import { getProviderHealthEntry } from "./health-state.mjs";
+import { enrichPlanWithRoutingConfidence } from "./routing-confidence.mjs";
 import {
+  analyzeSearchSignals,
+} from "./search-signals.mjs";
+import {
+  buildMissingCredentialMessage,
   getProvider,
+  getProviderConfigurationError,
   hasProviderCredentials,
   isProviderRuntimeAvailable,
   listProviders,
+  materializeProvider,
 } from "./providers.mjs";
 
 function normalizeSearchRequest(request) {
+  const searchType =
+    request.searchType ?? (request.news ? "news" : "web");
   return {
     query: String(request.query ?? "").trim(),
     engine: request.engine ?? null,
     count: request.count ?? 5,
     deep: request.deep ?? false,
-    news: request.news ?? false,
+    news: searchType === "news" || request.news === true,
+    searchType,
+    intentPreset: request.intentPreset ?? "general",
     days: request.days ?? null,
     includeDomains: request.includeDomains ?? null,
     excludeDomains: request.excludeDomains ?? null,
@@ -64,25 +75,68 @@ function providerIsAvailable(provider, env, config, options = {}) {
   if (provider.activation === "render") {
     return config.render.enabled && config.render.policy !== "off";
   }
-  return hasProviderCredentials(provider, env);
+  return hasProviderCredentials(provider, env) && !getProviderConfigurationError(provider, env);
 }
 
 function listEffectiveProviders(env, config, options = {}) {
-  return listProviders().filter((provider) =>
-    providerIsAvailable(provider, env, config, { ...options, env }),
-  );
+  return listProviders()
+    .filter((provider) => providerIsAvailable(provider, env, config, { ...options, env }))
+    .map((provider) => materializeProvider(provider, env));
+}
+
+function buildHardConstraints() {
+  return {
+    explicitEngineMismatch: false,
+    disabledByConfig: false,
+    baselineDisallowed: false,
+    runtimeUnavailable: false,
+    missingCredentials: false,
+    invalidConfiguration: false,
+    missingCapability: [],
+    providerSpecific: [],
+  };
+}
+
+function addContribution(candidate, contribution) {
+  candidate.contributions.push(contribution);
+}
+
+function addReasonContribution(candidate, contribution, reason, { prepend = false } = {}) {
+  addContribution(candidate, contribution);
+  if (prepend) {
+    candidate.reasons.unshift(reason);
+  } else {
+    candidate.reasons.push(reason);
+  }
+}
+
+function addIssue(candidate, message, assignment = null) {
+  candidate.issues.push(message);
+  if (!assignment) {
+    return;
+  }
+  if (Array.isArray(candidate.hardConstraints[assignment.key])) {
+    candidate.hardConstraints[assignment.key].push(assignment.value);
+  } else {
+    candidate.hardConstraints[assignment.key] = assignment.value;
+  }
 }
 
 function buildCandidateBase(provider, env, config, healthState, now, options = {}) {
+  const effectiveProvider = materializeProvider(provider, env);
   const credentialed = hasProviderCredentials(provider, env);
   const health = getProviderHealthEntry(healthState, provider.id, now);
+  const configurationError = getProviderConfigurationError(provider, env);
 
   return {
-    provider,
+    provider: effectiveProvider,
     configured: providerIsAvailable(provider, env, config, { ...options, env }),
     credentialed,
+    configurationError,
     runtimeAvailable: isProviderRuntimeAvailable(provider, { ...options, env }),
     health,
+    hardConstraints: buildHardConstraints(),
+    contributions: [],
     issues: [],
     reasons: [],
     score: null,
@@ -101,11 +155,33 @@ function finalizeCandidate(candidate, status) {
 
 function applyRoutingPolicy(score, provider, config, candidate) {
   if (config.routing.fallbackPolicy === "quality-first") {
-    candidate.reasons.push("quality-first policy favors higher quality providers");
+    addReasonContribution(
+      candidate,
+      {
+        kind: "policy",
+        id: "routing.quality-first",
+        label: "Quality-first policy favors higher quality providers",
+        delta: provider.routing.qualityScore * 40,
+        category: "policy",
+        evidence: config.routing.fallbackPolicy,
+      },
+      "quality-first policy favors higher quality providers",
+    );
     return score + provider.routing.qualityScore * 40;
   }
   if (config.routing.fallbackPolicy === "cost-first") {
-    candidate.reasons.push("cost-first policy favors lower cost providers");
+    addReasonContribution(
+      candidate,
+      {
+        kind: "policy",
+        id: "routing.cost-first",
+        label: "Cost-first policy favors lower cost providers",
+        delta: (10 - provider.routing.costScore) * 40,
+        category: "policy",
+        evidence: config.routing.fallbackPolicy,
+      },
+      "cost-first policy favors lower cost providers",
+    );
     return score + (10 - provider.routing.costScore) * 40;
   }
   return score;
@@ -113,7 +189,19 @@ function applyRoutingPolicy(score, provider, config, candidate) {
 
 function applyPreferenceBonus(score, provider, config, candidate) {
   if (config.routing.preferredProviders.includes(provider.id)) {
-    candidate.reasons.unshift(`preferred via config.routing.preferredProviders (${provider.id})`);
+    addReasonContribution(
+      candidate,
+      {
+        kind: "preference",
+        id: "routing.preferred-provider",
+        label: "Preferred provider configured by routing.preferredProviders",
+        delta: 280,
+        category: "preference",
+        evidence: provider.id,
+      },
+      `preferred via config.routing.preferredProviders (${provider.id})`,
+      { prepend: true },
+    );
     return score + 280;
   }
   return score;
@@ -121,8 +209,18 @@ function applyPreferenceBonus(score, provider, config, candidate) {
 
 function applyCooldownPenalty(score, provider, candidate) {
   if (candidate.health.status === "cooldown") {
-    candidate.reasons.unshift(
+    addReasonContribution(
+      candidate,
+      {
+        kind: "health-penalty",
+        id: "health.cooldown",
+        label: "Cooldown penalty applied because the provider is temporarily unhealthy",
+        delta: -1200,
+        category: "health",
+        evidence: candidate.health.cooldownUntil ?? null,
+      },
       `${provider.label} is in cooldown until ${candidate.health.cooldownUntil}`,
+      { prepend: true },
     );
     return score - 1200;
   }
@@ -144,48 +242,130 @@ function evaluateSerpApiSearchEngineConstraints(request) {
   return issues;
 }
 
+function applyQuerySignalBonus(score, provider, request, candidate) {
+  return (candidate.signalMatches ?? []).reduce((total, signal) => {
+    const delta = signal.providerDeltas?.[provider.id];
+    if (!delta) {
+      return total;
+    }
+    addReasonContribution(
+      candidate,
+      {
+        kind: "signal",
+        id: signal.id,
+        label: signal.label,
+        delta,
+        category: signal.category,
+        evidence: signal.evidence,
+      },
+      signal.label,
+      { prepend: true },
+    );
+    return total + delta;
+  }, score);
+}
+
 function evaluateSearchCandidate(provider, request, env, config, healthState, now, options = {}) {
   const candidate = buildCandidateBase(provider, env, config, healthState, now, options);
+  candidate.signalMatches = options.signalMatches ?? [];
+  const effectiveProvider = candidate.provider;
 
   if (request.engine && provider.id !== request.engine) {
+    candidate.hardConstraints.explicitEngineMismatch = true;
     candidate.summary = `Skipped because --engine ${request.engine} was requested`;
     return finalizeCandidate(candidate, "skipped");
   }
 
   if (providerIsDisabled(provider, config)) {
-    candidate.issues.push(`${provider.label} is disabled by config.routing.disabledProviders`);
+    addIssue(candidate, `${provider.label} is disabled by config.routing.disabledProviders`, {
+      key: "disabledByConfig",
+      value: true,
+    });
     return finalizeCandidate(candidate, "rejected");
   }
   if (providerUsesNoKeyBaseline(provider) && !config.routing.allowNoKeyBaseline) {
-    candidate.issues.push(`${provider.label} is disabled by routing.allowNoKeyBaseline=false`);
+    addIssue(candidate, `${provider.label} is disabled by routing.allowNoKeyBaseline=false`, {
+      key: "baselineDisallowed",
+      value: true,
+    });
     return finalizeCandidate(candidate, "rejected");
   }
-  if (!provider.capabilities.search) {
-    candidate.issues.push(`${provider.label} does not support search`);
+  if (!effectiveProvider.capabilities.search) {
+    addIssue(candidate, `${provider.label} does not support search`, {
+      key: "missingCapability",
+      value: "search",
+    });
     return finalizeCandidate(candidate, "rejected");
   }
   if (!candidate.configured) {
-    candidate.issues.push(`Missing ${provider.envVars.join(", ")}`);
+    if (candidate.configurationError) {
+      addIssue(candidate, candidate.configurationError, {
+        key: "invalidConfiguration",
+        value: true,
+      });
+    } else {
+      addIssue(candidate, buildMissingCredentialMessage(provider), {
+        key: "missingCredentials",
+        value: true,
+      });
+    }
   }
-  if (request.deep && !provider.capabilities.deepSearch) {
-    candidate.issues.push(`${provider.label} does not support --deep`);
+  if (request.deep && !effectiveProvider.capabilities.deepSearch) {
+    addIssue(candidate, `${provider.label} does not support --deep`, {
+      key: "missingCapability",
+      value: "deepSearch",
+    });
   }
-  if (request.news && !provider.capabilities.newsSearch) {
-    candidate.issues.push(`${provider.label} does not support --news`);
+  if (request.news && !effectiveProvider.capabilities.newsSearch) {
+    addIssue(candidate, `${provider.label} does not support --news`, {
+      key: "missingCapability",
+      value: "newsSearch",
+    });
   }
-  if (request.days !== null && !provider.capabilities.newsDays) {
-    candidate.issues.push(`${provider.label} does not support --days`);
+  if (request.days !== null && !effectiveProvider.capabilities.newsDays) {
+    addIssue(candidate, `${provider.label} does not support --days`, {
+      key: "missingCapability",
+      value: "newsDays",
+    });
   }
-  if ((request.country || request.lang) && !provider.capabilities.localeFiltering) {
-    candidate.issues.push(`${provider.label} does not support --country/--lang`);
+  if ((request.country || request.lang) && !effectiveProvider.capabilities.localeFiltering) {
+    addIssue(candidate, `${provider.label} does not support --country/--lang`, {
+      key: "missingCapability",
+      value: "localeFiltering",
+    });
   }
-  if (request.searchEngine && !provider.capabilities.subEngines.includes(request.searchEngine)) {
-    candidate.issues.push(
+  if (request.timeRange && !effectiveProvider.capabilities.timeRange) {
+    addIssue(candidate, `${provider.label} does not support --time-range`, {
+      key: "missingCapability",
+      value: "timeRange",
+    });
+  }
+  if ((request.fromDate || request.toDate) && !effectiveProvider.capabilities.dateRange) {
+    addIssue(candidate, `${provider.label} does not support --from/--to`, {
+      key: "missingCapability",
+      value: "dateRange",
+    });
+  }
+  if (
+    request.searchEngine &&
+    !effectiveProvider.capabilities.subEngines.includes(request.searchEngine)
+  ) {
+    addIssue(
+      candidate,
       `${provider.label} does not support --search-engine ${request.searchEngine}`,
+      {
+        key: "missingCapability",
+        value: `sub-engine:${request.searchEngine}`,
+      },
     );
   }
   if (provider.id === "serpapi") {
-    candidate.issues.push(...evaluateSerpApiSearchEngineConstraints(request));
+    for (const issue of evaluateSerpApiSearchEngineConstraints(request)) {
+      addIssue(candidate, issue, {
+        key: "providerSpecific",
+        value: issue,
+      });
+    }
   }
 
   if (candidate.issues.length > 0) {
@@ -193,58 +373,241 @@ function evaluateSearchCandidate(provider, request, env, config, healthState, no
   }
 
   let score = provider.routing.defaultSearchPriority;
+  addContribution(candidate, {
+    kind: "base",
+    id: "provider.default-search-priority",
+    label: "Provider default search priority",
+    delta: provider.routing.defaultSearchPriority,
+    category: "provider",
+    evidence: provider.id,
+  });
 
   if (request.engine === provider.id) {
     score += 1000;
-    candidate.reasons.push(`selected explicitly via --engine ${provider.id}`);
+    addReasonContribution(
+      candidate,
+      {
+        kind: "constraint",
+        id: "request.explicit-engine",
+        label: "Provider was selected explicitly via --engine",
+        delta: 1000,
+        category: "request",
+        evidence: provider.id,
+      },
+      `selected explicitly via --engine ${provider.id}`,
+    );
   }
   if (request.searchEngine) {
     score += 700;
-    candidate.reasons.unshift(`supports requested sub-engine ${request.searchEngine}`);
+    addReasonContribution(
+      candidate,
+      {
+        kind: "constraint",
+        id: "request.search-engine",
+        label: "Supports the requested sub-engine",
+        delta: 700,
+        category: "request",
+        evidence: request.searchEngine,
+      },
+      `supports requested sub-engine ${request.searchEngine}`,
+      { prepend: true },
+    );
   }
 
   if (request.news && request.days !== null) {
     score = 1000 + provider.routing.defaultSearchPriority;
-    candidate.reasons.unshift("required because --news --days is Tavily-only");
+    addReasonContribution(
+      candidate,
+      {
+        kind: "constraint",
+        id: "request.news-days",
+        label: "Selected because --news --days requires Tavily support",
+        delta: 1000,
+        category: "request",
+        evidence: "--news --days",
+      },
+      "required because --news --days is Tavily-only",
+      { prepend: true },
+    );
   } else if (request.news) {
     score = provider.routing.newsSearchPriority || provider.routing.defaultSearchPriority;
     if (provider.id === "serper") {
-      candidate.reasons.unshift("preferred for news coverage");
+      addReasonContribution(
+        candidate,
+        {
+          kind: "constraint",
+          id: "request.news-serper",
+          label: "Preferred for news coverage",
+          delta:
+            (provider.routing.newsSearchPriority || provider.routing.defaultSearchPriority) -
+            provider.routing.defaultSearchPriority,
+          category: "request",
+          evidence: "--news",
+        },
+        "preferred for news coverage",
+        { prepend: true },
+      );
     } else if (provider.id === "tavily") {
-      candidate.reasons.unshift("supports news search with AI-optimized ranking");
+      addReasonContribution(
+        candidate,
+        {
+          kind: "constraint",
+          id: "request.news-tavily",
+          label: "Supports news search with AI-optimized ranking",
+          delta:
+            (provider.routing.newsSearchPriority || provider.routing.defaultSearchPriority) -
+            provider.routing.defaultSearchPriority,
+          category: "request",
+          evidence: "--news",
+        },
+        "supports news search with AI-optimized ranking",
+        { prepend: true },
+      );
     } else if (provider.id === "serpapi") {
-      candidate.reasons.unshift("supports news search as a multi-engine fallback");
+      addReasonContribution(
+        candidate,
+        {
+          kind: "constraint",
+          id: "request.news-serpapi",
+          label: "Supports news search as a multi-engine fallback",
+          delta:
+            (provider.routing.newsSearchPriority || provider.routing.defaultSearchPriority) -
+            provider.routing.defaultSearchPriority,
+          category: "request",
+          evidence: "--news",
+        },
+        "supports news search as a multi-engine fallback",
+        { prepend: true },
+      );
+    } else {
+      addContribution(candidate, {
+        kind: "constraint",
+        id: "request.news-generic",
+        label: "News search request uses provider news priority",
+        delta:
+          (provider.routing.newsSearchPriority || provider.routing.defaultSearchPriority) -
+          provider.routing.defaultSearchPriority,
+        category: "request",
+        evidence: "--news",
+      });
     }
   }
 
   if (request.deep) {
     score = provider.routing.deepSearchPriority || provider.routing.defaultSearchPriority;
     if (provider.id === "tavily") {
-      candidate.reasons.unshift("supports deep search with advanced mode");
+      addReasonContribution(
+        candidate,
+        {
+          kind: "constraint",
+          id: "request.deep-tavily",
+          label: "Supports deep search with advanced mode",
+          delta:
+            (provider.routing.deepSearchPriority || provider.routing.defaultSearchPriority) -
+            provider.routing.defaultSearchPriority,
+          category: "request",
+          evidence: "--deep",
+        },
+        "supports deep search with advanced mode",
+        { prepend: true },
+      );
     } else if (provider.id === "exa") {
-      candidate.reasons.unshift("supports deep search as the strongest fallback");
+      addReasonContribution(
+        candidate,
+        {
+          kind: "constraint",
+          id: "request.deep-exa",
+          label: "Supports deep search as the strongest fallback",
+          delta:
+            (provider.routing.deepSearchPriority || provider.routing.defaultSearchPriority) -
+            provider.routing.defaultSearchPriority,
+          category: "request",
+          evidence: "--deep",
+        },
+        "supports deep search as the strongest fallback",
+        { prepend: true },
+      );
+    } else {
+      addContribution(candidate, {
+        kind: "constraint",
+        id: "request.deep-generic",
+        label: "Deep search request uses provider deep-search priority",
+        delta:
+          (provider.routing.deepSearchPriority || provider.routing.defaultSearchPriority) -
+          provider.routing.defaultSearchPriority,
+        category: "request",
+        evidence: "--deep",
+      });
     }
   }
 
   if (request.includeDomains?.length || request.excludeDomains?.length) {
-    if (provider.capabilities.domainFilterMode === "native") {
+    if (effectiveProvider.capabilities.domainFilterMode === "native") {
       score += 140;
-      candidate.reasons.unshift("supports native domain filtering");
-    } else if (provider.capabilities.domainFilterMode === "query") {
+      addReasonContribution(
+        candidate,
+        {
+          kind: "constraint",
+          id: "request.domain-filter-native",
+          label: "Supports native domain filtering",
+          delta: 140,
+          category: "request",
+          evidence: "domain-filter",
+        },
+        "supports native domain filtering",
+        { prepend: true },
+      );
+    } else if (effectiveProvider.capabilities.domainFilterMode === "query") {
       score += 40;
-      candidate.reasons.push("uses query-operator domain filtering fallback");
+      addReasonContribution(
+        candidate,
+        {
+          kind: "fallback",
+          id: "request.domain-filter-query",
+          label: "Uses query-operator domain filtering fallback",
+          delta: 40,
+          category: "request",
+          evidence: "domain-filter",
+        },
+        "uses query-operator domain filtering fallback",
+      );
     }
   }
 
   if (request.country || request.lang) {
     score += 90;
-    candidate.reasons.unshift("supports locale-specific filtering");
+    addReasonContribution(
+      candidate,
+      {
+        kind: "constraint",
+        id: "request.locale",
+        label: "Supports locale-specific filtering",
+        delta: 90,
+        category: "request",
+        evidence: `${request.country ?? ""}:${request.lang ?? ""}`,
+      },
+      "supports locale-specific filtering",
+      { prepend: true },
+    );
   }
 
   if (provider.id === "ddg" && !request.deep && !request.news) {
-    candidate.reasons.unshift("no-key baseline search fallback");
+    addReasonContribution(
+      candidate,
+      {
+        kind: "fallback",
+        id: "provider.no-key-baseline",
+        label: "No-key baseline search fallback",
+        delta: 0,
+        category: "availability",
+        evidence: provider.id,
+      },
+      "no-key baseline search fallback",
+      { prepend: true },
+    );
   }
 
+  score = applyQuerySignalBonus(score, provider, request, candidate);
   score = applyPreferenceBonus(score, provider, config, candidate);
   score = applyRoutingPolicy(score, provider, config, candidate);
   score = applyCooldownPenalty(score, provider, candidate);
@@ -292,7 +655,7 @@ function evaluateExtractCandidate(provider, request, env, config, healthState, n
     return finalizeCandidate(candidate, "rejected");
   }
   if (!candidate.configured && provider.activation !== "render") {
-    candidate.issues.push(`Missing ${provider.envVars.join(", ")}`);
+    candidate.issues.push(buildMissingCredentialMessage(provider));
     return finalizeCandidate(candidate, "rejected");
   }
 
@@ -344,7 +707,7 @@ function evaluateDiscoveryCandidate(provider, request, env, config, healthState,
     return finalizeCandidate(candidate, "rejected");
   }
   if (!candidate.configured) {
-    candidate.issues.push(`Missing ${provider.envVars.join(", ")}`);
+    candidate.issues.push(buildMissingCredentialMessage(provider));
     return finalizeCandidate(candidate, "rejected");
   }
 
@@ -394,17 +757,23 @@ function buildSearchRouteError(request, candidates, config) {
     return "--news --days requires TAVILY_API_KEY";
   }
   if (request.news) {
-    return "--news requires SERPER_API_KEY, TAVILY_API_KEY, or SERPAPI_API_KEY";
+    return "--news requires SERPER_API_KEY, TAVILY_API_KEY, SERPAPI_API_KEY, YOU_API_KEY, or SEARXNG_INSTANCE_URL";
   }
   if (request.deep) {
     return "--deep requires TAVILY_API_KEY or EXA_API_KEY";
   }
   if (request.country || request.lang) {
-    return "--country/--lang requires SERPER_API_KEY or SERPAPI_API_KEY";
+    return "--country/--lang requires SERPER_API_KEY, SERPAPI_API_KEY, YOU_API_KEY, BRAVE_API_KEY, or QUERIT_API_KEY";
+  }
+  if (request.timeRange) {
+    return "--time-range requires TAVILY_API_KEY, EXA_API_KEY, SERPER_API_KEY, SERPAPI_API_KEY, YOU_API_KEY, BRAVE_API_KEY, SEARXNG_INSTANCE_URL, QUERIT_API_KEY, or native PERPLEXITY_API_KEY";
+  }
+  if (request.fromDate || request.toDate) {
+    return "--from/--to requires TAVILY_API_KEY, EXA_API_KEY, SERPER_API_KEY, SERPAPI_API_KEY, YOU_API_KEY, BRAVE_API_KEY, or native PERPLEXITY_API_KEY";
   }
   return [
     "No search engine configured.",
-    "Set at least one API key: TAVILY_API_KEY, EXA_API_KEY, SERPER_API_KEY, or SERPAPI_API_KEY",
+    "Set at least one provider credential or endpoint: TAVILY_API_KEY, EXA_API_KEY, QUERIT_API_KEY, SERPER_API_KEY, BRAVE_API_KEY, SERPAPI_API_KEY, YOU_API_KEY, PERPLEXITY_API_KEY, OPENROUTER_API_KEY, KILOCODE_API_KEY, PERPLEXITY_GATEWAY_API_KEY + PERPLEXITY_BASE_URL, or SEARXNG_INSTANCE_URL",
   ].join(" ");
 }
 
@@ -452,6 +821,7 @@ function buildPlan(command, request, candidates, env, config, options = {}) {
   return {
     command,
     request,
+    signalMatches: options.signalMatches ?? [],
     configuredProviders: listEffectiveProviders(env, config, options).map((provider) => provider.id),
     selected: selected ? { ...selected, status: "selected" } : null,
     candidates: candidates
@@ -511,20 +881,27 @@ export function planSearchRoute(requestInput, options = {}) {
   const now = options.now ?? Date.now();
   const healthState = options.healthState ?? { providers: {} };
   const request = normalizeSearchRequest(requestInput);
+  const signalMatches = analyzeSearchSignals(request);
 
   const providers = request.engine
     ? listProviders().filter((provider) => provider.id === request.engine)
     : listProviders();
   const candidates = providers.map((provider) =>
-    evaluateSearchCandidate(provider, request, env, config, healthState, now, options),
+    evaluateSearchCandidate(provider, request, env, config, healthState, now, {
+      ...options,
+      signalMatches,
+    }),
   );
-  const plan = buildPlan("search", request, candidates, env, config, options);
+  const plan = buildPlan("search", request, candidates, env, config, {
+    ...options,
+    signalMatches,
+  });
 
-  return {
+  return enrichPlanWithRoutingConfidence({
     ...plan,
     federation: buildFederationPlan(plan, config),
     error: plan.selected ? null : { message: buildSearchRouteError(request, plan.candidates, config) },
-  };
+  });
 }
 
 export function planExtractRoute(requestInput, options = {}) {
@@ -629,6 +1006,12 @@ export function formatPlanMarkdown(plan) {
   if (selected) {
     lines.push(`- Selected provider: ${selected.provider.id}`);
     lines.push(`- Why: ${selected.summary}`);
+    if (selected.selectionMode) {
+      lines.push(`- Selection mode: ${selected.selectionMode}`);
+    }
+    if (selected.confidenceLevel) {
+      lines.push(`- Confidence: ${selected.confidenceLevel} (${selected.confidence})`);
+    }
   } else {
     lines.push("- No provider selected");
     lines.push(`- Error: ${plan.error?.message ?? "Unknown routing error"}`);
