@@ -1,10 +1,10 @@
 ---
 name: web-search-pro
 description: |
-  Explainable web retrieval for AI agents with a real no-key baseline plus search, extract,
-  crawl, map, research, diagnostics, and review surfaces.
-  Optional Tavily, Exa, Querit, Serper, Brave, SerpAPI, You.com, SearXNG, and Perplexity /
-  Sonar providers widen coverage, freshness, and answer-first routing.
+  Agent-first web search and retrieval for live web search, news search, docs lookup, code
+  lookup, company research, site crawl, site map, and structured evidence packs.
+  Includes a real no-key baseline plus optional Tavily, Exa, Querit, Serper, Brave, SerpAPI,
+  You.com, SearXNG, and Perplexity / Sonar providers for wider coverage and answer-first routing.
 homepage: https://github.com/Zjianru/web-search-pro
 metadata: {"openclaw":{"emoji":"🔎","requires":{"bins":["node"]}}}
 ---
@@ -12,9 +12,27 @@ metadata: {"openclaw":{"emoji":"🔎","requires":{"bins":["node"]}}}
 # Web Search Pro 2.1
 
 `web-search-pro` is the evolved `2.x` form of the original `1.x` multi-provider search skill.
-It is now a retrieval system for agents and upstream models, not just a single search script.
+It is now an agent-first web search and retrieval system, not just a single search script.
 Product / documentation version is `2.1`; machine-readable output schema stays `1.0` because
 current JSON changes are additive.
+
+## Common Agent Tasks
+
+- live web search and current-events search
+- news search and latest-update lookup
+- official docs, API docs, and reference lookup
+- code lookup and implementation research
+- company, product, and competitor research
+- site crawl, site map, and docs discovery
+- answer-first cited search with explainable routing
+- no-key baseline retrieval with optional premium providers
+
+Search keywords:
+
+`web search`, `news search`, `latest updates`, `current events`, `docs search`, `API docs`,
+`code search`, `company research`, `competitor analysis`, `site crawl`, `site map`,
+`multilingual search`, `Baidu search`, `answer-first search`, `cited answers`,
+`explainable routing`, `no-key baseline`
 
 ## Distribution Surfaces
 

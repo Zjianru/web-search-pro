@@ -1,12 +1,33 @@
 # Web Search Pro 2.1
 
-`web-search-pro` is a retrieval stack for agents and upstream models.  
-`web-search-pro` 是一个面向 Agent 和上层模型的检索基础设施。
+`web-search-pro` is an agent-first web search and retrieval stack for live web search, news
+search, docs lookup, code lookup, company research, site crawl, site map, and structured evidence
+packs.  
+`web-search-pro` 是一个面向 Agent 的 Web 搜索与检索基础设施，覆盖实时网页搜索、新闻搜索、
+官方文档检索、代码检索、公司研究、站点抓取、站点结构发现，以及结构化 evidence pack。
 
 It started as a `1.x` multi-provider search skill and evolved into a broader `2.x` product with
-retrieval, federation, diagnostics, and research-pack generation.  
-它起源于 `1.x` 的多引擎搜索 skill，`2.x` 开始进化为更完整的产品：检索、联邦搜索、
+search routing, extraction, crawling, diagnostics, and research-pack generation.  
+它起源于 `1.x` 的多引擎搜索 skill，`2.x` 开始进化为更完整的产品：搜索路由、提取、抓取、
 诊断、自审和 research evidence pack。
+
+## What Agents Use It For / Agent 适用任务
+
+- live web search and current-events search / 实时网页搜索与时效信息检索
+- news search and latest-update lookup / 新闻搜索与最新动态查询
+- official docs, API docs, and reference lookup / 官方文档、API 文档与参考资料检索
+- code lookup, implementation lookup, and developer research / 代码检索、实现方案检索与开发研究
+- company, product, and competitor research / 公司、产品与竞品研究
+- site crawl, site map, and docs discovery / 站点抓取、站点结构发现与文档发现
+- answer-first cited search with explainable routing / 带引用的 answer-first 搜索与可解释路由
+- no-key baseline retrieval with optional premium providers / 零 key baseline 检索与可选 premium provider 扩展
+
+## Search And Capability Keywords / 检索与能力关键词
+
+`web search`, `news search`, `latest updates`, `current events`, `docs search`, `API docs`,
+`code search`, `company research`, `competitor analysis`, `site crawl`, `site map`,
+`multilingual search`, `Baidu search`, `Google-like search`, `answer-first search`,
+`cited answers`, `explainable routing`, `no-key baseline`
 
 ## Versioning / 版本说明
 
@@ -39,9 +60,9 @@ Detailed notes / 详细说明：
 - [docs/search-routing-model.md](/Users/codez/develop/web-search-pro/docs/search-routing-model.md)
 - [docs/agent-contract-p0.md](/Users/codez/develop/web-search-pro/docs/agent-contract-p0.md)
 
-## From 1.x to 2.0 / 从 1.x 到 2.0
+## From 1.x to 2.x / 从 1.x 到 2.x
 
-| Dimension | `1.x` | `2.0` |
+| Dimension | `1.x` | `2.x` |
 | --- | --- | --- |
 | Product identity | Multi-engine search supplement | Retrieval stack for agents / 检索基础设施 |
 | Baseline | Provider key usually required | No-key baseline via `ddg` + `fetch` |
@@ -51,9 +72,9 @@ Detailed notes / 详细说明：
 | Research | None | Structured `plan + evidence pack` |
 | Review posture | Mostly documentation-level | Runtime diagnostics, review output, health visibility |
 
-What `2.0` keeps from `1.x`: explicit flags, predictable CLI semantics, engine forcing, and
+What `2.x` keeps from `1.x`: explicit flags, predictable CLI semantics, engine forcing, and
 provider-aware query control.  
-`2.0` 保留了 `1.x` 里已经做对的东西：显式参数控制、可预测的 CLI 语义、强制指定引擎、
+`2.x` 保留了 `1.x` 里已经做对的东西：显式参数控制、可预测的 CLI 语义、强制指定引擎、
 以及围绕 provider 的精细化查询控制。
 
 ## Core Capabilities / 核心能力
