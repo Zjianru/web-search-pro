@@ -1,5 +1,10 @@
 # ClawHub Compliance
 
+## Audience
+
+This document is for maintainers, registry reviewers, and security-minded users who need to
+understand the current ClawHub / OpenClaw trust posture of `web-search-pro`.
+
 This document explains the current ClawHub / OpenClaw compliance posture of `web-search-pro`.
 
 ## Distribution Boundary

@@ -1,5 +1,10 @@
 # Search UX Model
 
+## Audience
+
+This document is for product, CLI, and documentation maintainers who need to keep the entry
+surface understandable without breaking the underlying routing architecture.
+
 ## Goal
 
 `web-search-pro` already has a strong routing and retrieval foundation. This document defines the

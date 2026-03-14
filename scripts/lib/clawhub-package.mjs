@@ -252,30 +252,25 @@ function transformPlannerSource(source) {
 function buildClawhubReadme() {
   return `# Web Search Pro 2.1 Core Profile
 
-\`web-search-pro\` is an agent-first web search and retrieval stack for live web search, news
-search, docs lookup, code lookup, company research, site crawl, site map, and structured evidence
-packs.
-This ClawHub package ships the core profile that is most useful to installed agents while keeping
-the registry-facing package narrow and review-friendly.
+\`web-search-pro\` is a search skill and local retrieval runtime for agents. This ClawHub package
+ships the narrower core profile: enough to search, extract, crawl, map, and assemble research
+packs, while keeping the published artifact review-friendly.
+
 It is a code-backed Node runtime package, not an instruction-only bundle.
 
-## Common Agent Tasks
+## What This Core Profile Is
 
-- live web search and current-events search
-- news search and latest-update lookup
-- official docs, API docs, and reference lookup
-- code lookup and implementation research
-- company, product, and competitor research
-- site crawl, site map, and docs discovery
-- answer-first cited search with explainable routing
-- no-key baseline retrieval with optional premium providers
+Use this package when you want:
 
-Search keywords:
+- live web search and news search
+- docs lookup and code lookup
+- explainable routing
+- visible federated-search gains
+- extract, crawl, map, and research flows
+- a real no-key baseline before adding premium providers
 
-\`web search\`, \`news search\`, \`latest updates\`, \`current events\`, \`docs search\`,
-\`API docs\`, \`code search\`, \`company research\`, \`competitor analysis\`, \`site crawl\`,
-\`site map\`, \`multilingual search\`, \`Baidu search\`, \`answer-first search\`,
-\`cited answers\`, \`explainable routing\`, \`no-key baseline\`
+This package is not the full repository surface. It is the ClawHub install profile that focuses on
+the core retrieval path.
 
 ## Quick Start
 
@@ -313,6 +308,14 @@ node scripts/search.mjs "OpenAI Responses API docs" --preset docs --plan --json
 node scripts/extract.mjs "https://platform.openai.com/docs" --json
 \`\`\`
 
+### Then try docs, news, and research
+
+\`\`\`bash
+node scripts/search.mjs "OpenAI Responses API docs" --preset docs --json
+node scripts/search.mjs "latest OpenAI news" --type news --json
+node scripts/research.mjs "OpenClaw search skill landscape" --plan --json
+\`\`\`
+
 ## Install Model
 
 ClawHub installs this bundle directly as a code-backed Node skill pack.
@@ -345,6 +348,21 @@ Federation is not just "more providers". It exposes compact gain metrics:
 - \`review.mjs\`
 - \`cache.mjs\`
 - \`health.mjs\`
+
+## Runtime Contract
+
+- \`selectedProvider\`
+  The planner's primary route.
+- \`routingSummary\`
+  Compact route explanation with confidence and federation summary.
+- \`federated.providersUsed\`
+  Providers that actually returned results when fanout is active.
+- \`federated.value\`
+  Compact federation gain summary.
+- \`cached\` / \`cache\`
+  Cache hit and TTL telemetry for agents.
+- \`topicType\`, \`topicSignals\`, \`researchAxes\`
+  Compact planning summaries for the model-facing research pack.
 
 ## Baseline And Optional Providers
 
@@ -379,22 +397,6 @@ The baseline remains:
 - \`ddg\` for best-effort search
 - \`fetch\` for extract / crawl / map fallback
 
-## Key Runtime Semantics
-
-- \`selectedProvider\`
-  The primary route selected by the planner.
-- \`routingSummary\`
-  Compact route explanation for agents.
-- \`federated.providersUsed\`
-  The provider set that actually returned results when fanout is active.
-- \`federated.value\`
-  Compact federation gain summary for additional providers, recovered results, corroboration, and
-  duplicate savings.
-- \`cached\` / \`cache\`
-  Cache hit plus TTL telemetry for agents.
-- \`topicType\`, \`topicSignals\`, \`researchAxes\`
-  Compact planning summaries for the model-facing research pack.
-
 ## Core Commands
 
 \`\`\`bash
@@ -413,8 +415,16 @@ node scripts/review.mjs --json
 The GitHub repository contains the full \`2.1\` source tree, including extra local-only developer
 surfaces and validation tooling. The ClawHub publish package intentionally keeps the installed
 artifact smaller so the registry package stays honest about its runtime shape.
+
 The shipped core profile runs with Node plus direct network access through \`curl\` or built-in
 \`fetch\`; it does not rely on Python helper transports.
+
+Search keywords:
+
+\`web search\`, \`news search\`, \`latest updates\`, \`current events\`, \`docs search\`,
+\`API docs\`, \`code search\`, \`company research\`, \`competitor analysis\`, \`site crawl\`,
+\`site map\`, \`multilingual search\`, \`Baidu search\`, \`answer-first search\`,
+\`cited answers\`, \`explainable routing\`, \`no-key baseline\`
 
 Full source:
 - https://github.com/Zjianru/web-search-pro
@@ -475,23 +485,13 @@ metadata: ${JSON.stringify(metadata)}
 This ClawHub package publishes the core retrieval profile of \`web-search-pro\`.
 It is a code-backed Node runtime package, not an instruction-only bundle.
 
-Common agent tasks:
+## Use This Skill When
 
-- live web search and current-events search
-- news search and latest-update lookup
-- official docs, API docs, and reference lookup
-- code lookup and implementation research
-- company, product, and competitor research
-- site crawl, site map, and docs discovery
-- answer-first cited search with explainable routing
-- no-key baseline retrieval with optional premium providers
-
-Search keywords:
-
-\`web search\`, \`news search\`, \`latest updates\`, \`current events\`, \`docs search\`,
-\`API docs\`, \`code search\`, \`company research\`, \`competitor analysis\`, \`site crawl\`,
-\`site map\`, \`multilingual search\`, \`Baidu search\`, \`answer-first search\`,
-\`cited answers\`, \`explainable routing\`, \`no-key baseline\`
+- the caller needs live web search or news search
+- the caller needs docs lookup or code lookup
+- the caller may continue from search into extract, crawl, map, or research
+- the agent needs explainable routing and visible federated-search gains
+- the first run needs a real no-key baseline
 
 ## Quick Start
 
@@ -529,6 +529,14 @@ node {baseDir}/scripts/search.mjs "OpenAI Responses API docs" --preset docs --pl
 node {baseDir}/scripts/extract.mjs "https://platform.openai.com/docs" --json
 \`\`\`
 
+### Then try docs, news, and research
+
+\`\`\`bash
+node {baseDir}/scripts/search.mjs "OpenAI Responses API docs" --preset docs --json
+node {baseDir}/scripts/search.mjs "latest OpenAI news" --type news --json
+node {baseDir}/scripts/research.mjs "OpenClaw search skill landscape" --plan --json
+\`\`\`
+
 ## Install Model
 
 ClawHub installs this bundle directly as a code-backed Node skill pack.
@@ -547,6 +555,26 @@ Federation is not just "more providers". It exposes compact gain metrics:
 - \`federated.value.resultsCorroboratedByFanout\`
 - \`federated.value.duplicateSavings\`
 - \`routingSummary.federation.value\`
+
+## Runtime Contract
+
+- \`selectedProvider\`
+  The planner's primary route.
+- \`routingSummary\`
+  Compact route explanation with confidence and federation summary.
+- \`routing.diagnostics\`
+  Full route diagnostics exposed by \`--explain-routing\` or \`--plan\`.
+- \`federated.providersUsed\`
+  The providers that actually returned results when fanout is active.
+- \`federated.value\`
+  Compact federation gain summary for added providers, recovered results, corroboration, and
+  duplicate savings.
+- \`cached\` / \`cache\`
+  Cache hit plus TTL telemetry for agents.
+- \`topicType\`, \`topicSignals\`, \`researchAxes\`
+  Structured planning summaries for the model-facing research pack.
+
+## Commands By Task
 
 Included commands:
 
@@ -568,22 +596,6 @@ Runtime notes:
 - No API key is required for the baseline.
 - Optional provider credentials or endpoints widen coverage.
 - Baseline outbound requests use \`curl\` when available and fall back to built-in \`fetch\`.
-
-Key semantics:
-
-- \`selectedProvider\`
-  The primary route chosen by the planner.
-- \`routingSummary\`
-  Compact route explanation for agents.
-- \`federated.providersUsed\`
-  The providers that actually returned results when fanout is active.
-- \`federated.value\`
-  Compact federation gain summary for additional providers, recovered results, corroboration, and
-  duplicate savings.
-- \`cached\` / \`cache\`
-  Cache hit plus TTL telemetry for agents.
-- \`topicType\`, \`topicSignals\`, \`researchAxes\`
-  Structured planning summaries for the model-facing research pack.
 
 Baseline:
 
@@ -623,6 +635,13 @@ node {baseDir}/scripts/doctor.mjs --json
 node {baseDir}/scripts/bootstrap.mjs --json
 node {baseDir}/scripts/review.mjs --json
 \`\`\`
+
+Search keywords:
+
+\`web search\`, \`news search\`, \`latest updates\`, \`current events\`, \`docs search\`,
+\`API docs\`, \`code search\`, \`company research\`, \`competitor analysis\`, \`site crawl\`,
+\`site map\`, \`multilingual search\`, \`Baidu search\`, \`answer-first search\`,
+\`cited answers\`, \`explainable routing\`, \`no-key baseline\`
 `;
 }
 
@@ -630,6 +649,12 @@ function buildClawhubComplianceDoc() {
   return `# ClawHub Compliance
 
 This package is the registry-facing core profile of \`web-search-pro\`.
+
+## Audience
+
+This document is for maintainers, reviewers, and security-minded users who need to understand why
+the ClawHub package is narrower than the full repository and what the registry-facing trust story
+actually is.
 
 ## Compliance Posture
 

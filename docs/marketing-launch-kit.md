@@ -1,5 +1,10 @@
 # Marketing Launch Kit
 
+## Audience
+
+This document is for maintainers doing launch, directory outreach, community posts, and benchmark
+promotion. It is intentionally marketing-facing rather than implementation-facing.
+
 This document turns the current `web-search-pro` release state into reusable promotion material.
 It is optimized for agent-first distribution, not generic product marketing.
 
@@ -68,7 +73,7 @@ Do not lead with provider count. Lead with:
 ### Discord / Forum (English)
 
 ```text
-Web Search Pro 2.1.3 is live.
+Web Search Pro 2.1.4 is live.
 
 It is an agent-first web search and retrieval stack with:
 - a real no-key baseline
@@ -80,7 +85,7 @@ This is not just a search wrapper. The goal is to let an agent search, inspect s
 missing results with federation, and continue into evidence collection without switching skills.
 
 ClawHub:
-https://www.clawhub.com/Zjianru/web-search-pro
+https://clawhub.ai/Zjianru/web-search-pro
 
 GitHub:
 https://github.com/Zjianru/web-search-pro
@@ -89,7 +94,7 @@ https://github.com/Zjianru/web-search-pro
 ### WeChat / Chinese Community
 
 ```text
-Web Search Pro 2.1.3 已发布。
+Web Search Pro 2.1.4 已发布。
 
 这是一个面向 Agent 的 Web 搜索与检索栈，不只是“搜索一下”：
 - 零 key baseline 可直接跑通
@@ -98,7 +103,7 @@ Web Search Pro 2.1.3 已发布。
 - 内置 extract / crawl / map / research，搜索后可以继续做证据收集
 
 ClawHub：
-https://www.clawhub.com/Zjianru/web-search-pro
+https://clawhub.ai/Zjianru/web-search-pro
 
 GitHub：
 https://github.com/Zjianru/web-search-pro
@@ -118,7 +123,7 @@ The most useful feedback is:
 
 Title:
 
-`Web Search Pro 2.1.3: explainable agent search with visible federation gains`
+`Web Search Pro 2.1.4: explainable agent search with visible federation gains`
 
 Body:
 
@@ -143,7 +148,7 @@ rewriting context.
 
 If you want to try it:
 
-- ClawHub: https://www.clawhub.com/Zjianru/web-search-pro
+- ClawHub: https://clawhub.ai/Zjianru/web-search-pro
 - GitHub: https://github.com/Zjianru/web-search-pro
 
 If you use it, feedback that compares baseline search, premium search, and federated search is the

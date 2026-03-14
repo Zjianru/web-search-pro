@@ -1,5 +1,10 @@
 # Search Router V2
 
+## Audience
+
+This document is for contributors working on planner behavior, query-signal coverage, confidence
+modeling, and provider growth without collapsing the router into a regex wall.
+
 ## Goal
 
 `search-router v2` keeps the current layered routing foundation and closes the main gap with

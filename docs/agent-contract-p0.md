@@ -1,5 +1,11 @@
 # Agent Contract P0
 
+## Audience
+
+This document is for maintainers shaping the agent-facing runtime contract of `web-search-pro`.
+Read it when you need to decide what an upstream model can safely infer from `doctor`,
+`bootstrap`, provider state, and partial execution outcomes.
+
 ## Goal
 
 `web-search-pro` is an agent skill, not a human-first CLI product.

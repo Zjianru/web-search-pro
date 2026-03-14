@@ -1,35 +1,80 @@
-# Web Search Pro 2.1
+[English](README.md) | [中文](README_zh.md)
 
-`web-search-pro` is an agent-first web search and retrieval stack for live web search, news
-search, docs lookup, code lookup, company research, site crawl, site map, and structured evidence
-packs.  
-`web-search-pro` 是一个面向 Agent 的 Web 搜索与检索基础设施，覆盖实时网页搜索、新闻搜索、
-官方文档检索、代码检索、公司研究、站点抓取、站点结构发现，以及结构化 evidence pack。
+# Web Search Pro
 
-It started as a `1.x` multi-provider search skill and evolved into a broader `2.x` product with
-search routing, extraction, crawling, diagnostics, and research-pack generation.  
-它起源于 `1.x` 的多引擎搜索 skill，`2.x` 开始进化为更完整的产品：搜索路由、提取、抓取、
-诊断、自审和 research evidence pack。
+`web-search-pro` is an OpenClaw search skill and local Node retrieval runtime for agents. It can
+search the live web, fetch and extract pages, crawl sites, map docs, and assemble research-ready
+evidence packs with explainable routing.
 
-## What Agents Use It For / Agent 适用任务
+- ClawHub: [web-search-pro](https://clawhub.ai/Zjianru/web-search-pro)
+- GitHub: [Zjianru/web-search-pro](https://github.com/Zjianru/web-search-pro)
+- OpenClaw archive: [openclaw/skills/tree/main/skills/zjianru/web-search-pro](https://github.com/openclaw/skills/tree/main/skills/zjianru/web-search-pro)
 
-- live web search and current-events search / 实时网页搜索与时效信息检索
-- news search and latest-update lookup / 新闻搜索与最新动态查询
-- official docs, API docs, and reference lookup / 官方文档、API 文档与参考资料检索
-- code lookup, implementation lookup, and developer research / 代码检索、实现方案检索与开发研究
-- company, product, and competitor research / 公司、产品与竞品研究
-- site crawl, site map, and docs discovery / 站点抓取、站点结构发现与文档发现
-- answer-first cited search with explainable routing / 带引用的 answer-first 搜索与可解释路由
-- no-key baseline retrieval with optional premium providers / 零 key baseline 检索与可选 premium provider 扩展
+## What It Is
 
-## Search And Capability Keywords / 检索与能力关键词
+This project sits between a lightweight web-search skill and a full hosted scraping product.
 
-`web search`, `news search`, `latest updates`, `current events`, `docs search`, `API docs`,
-`code search`, `company research`, `competitor analysis`, `site crawl`, `site map`,
-`multilingual search`, `Baidu search`, `Google-like search`, `answer-first search`,
-`cited answers`, `explainable routing`, `no-key baseline`
+The simplest mental model is:
 
-## Quick Start / 快速开始
+- a search skill for agents
+- a local retrieval runtime
+- a bridge from `search` to `extract`, `crawl`, `map`, and `research`
+
+Use it when search is only the beginning of the task and the agent may need to keep collecting,
+structuring, and handing off evidence.
+
+## Choose This If
+
+Choose `web-search-pro` if you need:
+
+- live web search and current-events lookup
+- news search with explainable routing and visible fallback behavior
+- official docs, API docs, and code lookup
+- company, product, and competitor research
+- site crawl, site map, and docs discovery
+- a no-key baseline first, then premium providers only when needed
+- structured outputs that an upstream model can keep using
+
+In short: this is for developers who want one skill to cover search, retrieval, and evidence prep.
+
+## Do Not Choose This If
+
+Do not choose `web-search-pro` if you primarily want:
+
+- the lightest possible single-purpose web search wrapper
+- a hosted remote scraping SaaS
+- a browser-first crawler by default
+- a narrative report writer that hides retrieval details
+- an unlimited no-key search guarantee
+
+If all you need is lightweight one-shot search, a smaller skill will usually be a better fit.
+
+## Why Developers Pick It
+
+Compared with a plain search skill, the differentiators are:
+
+- **Explainable routing**
+  `routingSummary` exposes why a provider was selected, how confident the planner is, and what the
+  top signals were.
+- **Visible federated gains**
+  `federated.value` shows what multi-provider fanout actually recovered, corroborated, or deduped.
+- **Search-to-research chain**
+  One surface can move from `search` into `extract`, `crawl`, `map`, and `research`.
+- **No-key baseline**
+  You can evaluate the skill without buying into a provider stack first.
+- **Agent-readable diagnostics**
+  `doctor.mjs`, `bootstrap.mjs`, `capabilities.mjs`, and `review.mjs` expose runtime state and
+  boundaries instead of leaving the model to guess.
+
+## Quick Start
+
+There are two honest ways to approach this project:
+
+- **Install and use it as a skill**
+  Start from the ClawHub page or the OpenClaw archive entry if you want to use it inside OpenClaw.
+- **Run it from source**
+  Use the commands below if you want to evaluate the local runtime directly, inspect outputs, or
+  contribute to the repo.
 
 The shortest successful path is:
 
@@ -37,23 +82,14 @@ The shortest successful path is:
 - add one premium provider only when you need stronger recall or fresher results
 - then try docs, news, and research flows
 
-最短上手路径是：
+### Option A: No-key baseline
 
-- 先跑通零 key baseline
-- 只有在需要更强召回或更强时效时，再加一个 premium provider
-- 然后继续尝试 docs、news 和 research 流程
+No API key is required for the first successful run.
 
-### Option A: No-key baseline / 零 key 基线
-
-No API key is required for the first successful run. The baseline is:
+The baseline is:
 
 - `ddg` for best-effort web search
 - `fetch` for extract, crawl, and map fallback
-
-第一条成功路径不需要 API key。baseline 由两部分组成：
-
-- `ddg`：best-effort 网页搜索
-- `fetch`：extract、crawl、map 的零 key fallback
 
 ```bash
 node scripts/doctor.mjs --json
@@ -61,13 +97,21 @@ node scripts/bootstrap.mjs --json
 node scripts/search.mjs "OpenAI Responses API docs" --json
 ```
 
-### Option B: Add one premium provider / 只加一个 premium provider
+What these commands tell you:
 
-If you only add one premium provider, start with `TAVILY_API_KEY`. It is the shortest upgrade path
-because it improves general web search, news search, and extract quality with one credential.
+- `doctor.mjs` tells you whether the runtime is usable right now
+- `bootstrap.mjs` gives an agent-readable runtime snapshot
+- `search.mjs` proves the baseline path works before you add premium providers
 
-如果你只想先加一个 premium provider，优先从 `TAVILY_API_KEY` 开始。它是最短升级路径，因为
-一组凭据就能同时增强一般网页搜索、新闻搜索和 extract 质量。
+### Option B: Add one premium provider
+
+If you only add one premium provider, start with `TAVILY_API_KEY`.
+
+That is the shortest upgrade path because one credential improves:
+
+- general web search
+- news search
+- extract quality
 
 ```bash
 export TAVILY_API_KEY=tvly-xxxxx
@@ -75,7 +119,7 @@ node scripts/doctor.mjs --json
 node scripts/search.mjs "latest OpenAI news" --type news --json
 ```
 
-### First successful searches / 第一批成功命令
+### First successful searches
 
 ```bash
 node scripts/search.mjs "OpenClaw web search" --json
@@ -83,7 +127,7 @@ node scripts/search.mjs "OpenAI Responses API docs" --preset docs --plan --json
 node scripts/extract.mjs "https://platform.openai.com/docs" --json
 ```
 
-### Then try docs, news, and research / 然后继续尝试 docs、news 和 research
+### Then try docs, news, and research
 
 ```bash
 node scripts/search.mjs "OpenAI Responses API docs" --preset docs --json
@@ -91,31 +135,43 @@ node scripts/search.mjs "latest OpenAI news" --type news --json
 node scripts/research.mjs "OpenClaw search skill landscape" --plan --json
 ```
 
-## Why Federated Search Matters / 联邦搜索为什么有价值
+## Core Commands
+
+| Command | Purpose |
+| --- | --- |
+| `search.mjs` | Multi-provider search with explainable routing |
+| `extract.mjs` | Single-page readable extraction |
+| `render.mjs` | Forced browser-backed extraction through the local render lane |
+| `crawl.mjs` | Safe BFS crawl |
+| `map.mjs` | Site-structure discovery |
+| `research.mjs` | Structured `plan + evidence pack` generation |
+| `doctor.mjs` | Runtime diagnostics |
+| `bootstrap.mjs` | Agent-readable runtime bootstrap contract |
+| `capabilities.mjs` | Provider capability snapshot |
+| `review.mjs` | Review and moderation summary |
+| `cache.mjs` | Cache inspection |
+| `health.mjs` | Provider health inspection |
+| `eval.mjs` | Retrieval and benchmark harness |
+
+## Why Federated Search Matters
 
 Federation is not just "more providers". It makes multi-provider value visible with compact,
 machine-readable gain metrics.
 
-联邦搜索不只是“多跑几个 provider”，而是把多 provider 的真实增益变成紧凑、可机器消费的指标。
+Key fields:
 
 - `federated.providersUsed`
   Providers that actually returned results.
-  真实返回结果的 provider 集合。
 - `federated.value.additionalProvidersUsed`
-  How many non-primary providers actually contributed.
-  真正贡献结果的非主 provider 数量。
+  How many non-primary providers really contributed.
 - `federated.value.resultsRecoveredByFanout`
-  Final results that disappear in primary-only mode.
-  如果只跑主 provider 就会消失的最终结果数量。
+  Final results that would disappear in primary-only mode.
 - `federated.value.resultsCorroboratedByFanout`
   Final results supported by both the primary and at least one fanout provider.
-  同时得到主 provider 和 fanout provider 支持的最终结果数量。
 - `federated.value.duplicateSavings`
-  Exact or near-duplicate results collapsed by the merge.
-  merge 过程中被折叠掉的精确或近似重复结果数量。
+  Exact or near-duplicate results removed by merge.
 - `routingSummary.federation.value`
   The compact federation gain summary exposed alongside route explanation.
-  与路由解释一起暴露的紧凑联邦增益摘要。
 
 Example:
 
@@ -138,128 +194,51 @@ Example:
 
 Interpretation:
 
-- `resultsRecoveredByFanout=1` means federation produced one final result that primary-only search
-  would have missed.
-- `resultsCorroboratedByFanout=1` means another final result got multi-provider support.
-- `duplicateSavings=1` means the merge removed one duplicate instead of wasting result slots.
+- `resultsRecoveredByFanout=1` means federation recovered one final result that primary-only
+  search would have missed
+- `resultsCorroboratedByFanout=1` means another final result got multi-provider support
+- `duplicateSavings=1` means the merge removed one duplicate instead of wasting result slots
 
-## Versioning / 版本说明
+## Routing And Output Contract
 
-- Product / docs version: `2.1`
-- JSON schema version: `1.0`
+The router combines five layers of truth:
 
-`2.x` is the retrieval-stack line, and the current product/docs release is `2.1`. Machine-readable
-payloads remain additive and compatible, so schema stays `1.0`.
-`2.x` 是检索基础设施这一产品线，当前文档与产品版本是 `2.1`。机器消费的 JSON 输出仍保持增量兼容，因此 schema 继续是 `1.0`。
-
-## Distribution Surfaces / 分发面
-
-The repository now has two honest distribution surfaces:
-
-- GitHub / local OpenClaw source tree: the full `2.1` feature set
-- ClawHub publish package: a generated core profile built by `scripts/build-clawhub-package.mjs`
-
-仓库现在有两个都真实、但职责不同的分发面：
-
-- GitHub / 本地 OpenClaw 源码树：完整 `2.1` 能力面
-- ClawHub 发布包：通过 `scripts/build-clawhub-package.mjs` 生成的 core profile
-
-Why this split exists:
-
-- GitHub 和本地 OpenClaw 需要完整的 `render`、`eval`、测试与研究工具链
-- ClawHub registry 更适合一个更窄、更诚实、静态扫描噪音更小的安装包
-
-Detailed notes / 详细说明：
-- [docs/clawhub-package.md](/Users/codez/develop/web-search-pro/docs/clawhub-package.md)
-- [docs/search-routing-model.md](/Users/codez/develop/web-search-pro/docs/search-routing-model.md)
-- [docs/agent-contract-p0.md](/Users/codez/develop/web-search-pro/docs/agent-contract-p0.md)
-
-## From 1.x to 2.x / 从 1.x 到 2.x
-
-| Dimension | `1.x` | `2.x` |
-| --- | --- | --- |
-| Product identity | Multi-engine search supplement | Retrieval stack for agents / 检索基础设施 |
-| Baseline | Provider key usually required | No-key baseline via `ddg` + `fetch` |
-| Surface | Mostly `search` + `extract` | `search`, `extract`, `render`, `crawl`, `map`, `research`, `doctor`, `review`, `eval` |
-| Routing | Static auto-select rules | Capability matrix + config + health + federation |
-| Site retrieval | Single-page extract | Extract + render + BFS crawl + map |
-| Research | None | Structured `plan + evidence pack` |
-| Review posture | Mostly documentation-level | Runtime diagnostics, review output, health visibility |
-
-What `2.x` keeps from `1.x`: explicit flags, predictable CLI semantics, engine forcing, and
-provider-aware query control.  
-`2.x` 保留了 `1.x` 里已经做对的东西：显式参数控制、可预测的 CLI 语义、强制指定引擎、
-以及围绕 provider 的精细化查询控制。
-
-## Core Capabilities / 核心能力
-
-| Command | Purpose |
-| --- | --- |
-| `search.mjs` | Multi-provider search with explainable routing / 多引擎搜索与可解释路由 |
-| `extract.mjs` | Single-page readable extraction / 单页正文提取 |
-| `render.mjs` | Forced browser-backed extraction / 强制浏览器渲染提取 |
-| `crawl.mjs` | Safe BFS crawl / 安全 BFS 站点抓取 |
-| `map.mjs` | Site structure discovery / 站点结构发现 |
-| `research.mjs` | Structured `plan + evidence pack` / 结构化研究规划与证据包 |
-| `doctor.mjs` | Runtime diagnostics / 运行时诊断 |
-| `bootstrap.mjs` | Agent-readable runtime bootstrap contract / 面向 Agent 的运行时 bootstrap 合同 |
-| `capabilities.mjs` | Provider capability snapshot / Provider 能力快照 |
-| `review.mjs` | Moderation / review summary / 审查与合规摘要 |
-| `cache.mjs`, `health.mjs`, `eval.mjs` | Operations, health, and benchmark tooling / 运维、健康与评测工具 |
-
-## Routing Model / 路由模型
-
-Routing combines:
-
-1. capability filtering
+1. provider capability facts
 2. structured query signals
 3. runtime policy from `config.json`
-4. provider health
-5. optional federated fanout
+4. local health state
+5. optional federation
 
-路由由五层共同决定：
-
-1. 能力过滤
-2. 结构化 query signals
-3. `config.json` 运行时策略
-4. provider 健康状态
-5. 可选的 federated fanout
-
-Important semantics / 关键语义：
+Important fields:
 
 - `selectedProvider`
-  Primary route, not the only data source.  
-  主路由，不代表唯一数据来源。
+  The primary route. It is not the same thing as "the only provider used".
 - `routingSummary`
-  Compact route explanation with `selectionMode`, `confidence`, and `topSignals`, plus alternatives and federation context.
-  紧凑路由解释，包含 `selectionMode`、`confidence`、`topSignals`，以及替代候选和 federation 上下文。
+  Compact route explanation with `selectionMode`, `confidence`, `topSignals`, alternatives, and
+  federation context.
 - `routing.diagnostics`
-  Full route diagnostics exposed by `--explain-routing` or `--plan`, including matched query signals and runner-up context.
-  仅在 `--explain-routing` 或 `--plan` 下暴露的完整路由诊断，包括命中的 query signals 和 runner-up 上下文。
+  Full route diagnostics exposed by `--explain-routing` or `--plan`.
 - `federated.providersUsed`
-  Providers that actually returned results.  
-  真实参与并返回结果的 provider 集合。
+  The provider set that actually returned results when fanout is active.
 - `federated.value`
-  Compact federation gain summary: added providers, recovered results, corroborated results,
-  and duplicate savings.
-  紧凑的联邦增益摘要：额外 provider、补回结果、多源佐证结果，以及重复去除收益。
+  Compact federation gain summary: added providers, recovered results, corroborated results, and
+  duplicate savings.
 - `cached` / `cache`
-  Cache hit flag plus age / TTL telemetry for agents.
-  面向 Agent 的缓存命中标志与 age / TTL 遥测。
+  Cache hit plus age / TTL telemetry for agents.
 - `renderLane`
-  Browser-lane runtime availability and policy summary.  
-  浏览器渲染通道的运行时可用性和策略摘要。
-- `topicType`, `topicSignals`, `researchAxes`
-  Research-pack planning summaries for upstream models.  
-  给上层模型消费的 research 规划摘要。
+  Runtime availability and policy summary for the browser-backed render lane.
+- `meta.searchType`
+  User-facing result surface selector. Current shipped values are `web | news`.
+- `meta.intentPreset`
+  User-facing intent preset. Current shipped values are
+  `general | code | company | docs | research`.
 
-## Baseline and Providers / Baseline 与增强 Provider
+These are product-layer inputs, not provider ids.
 
-No API key is required for the baseline. Optional provider credentials or endpoints unlock enhanced features.
-基础能力不要求 API key。配置可选 provider 凭据或 endpoint 后可解锁增强能力。
+## Providers And Upgrade Paths
 
-For direct local CLI usage, provider keys must already be present in the current shell environment or injected by OpenClaw.  
-如果直接在本地终端运行 CLI，provider key 需要已经进入当前 shell 环境，或由 OpenClaw 注入。
+No API key is required for the baseline. Optional provider credentials or endpoints unlock stronger
+coverage.
 
 ```bash
 TAVILY_API_KEY=tvly-xxxxx
@@ -274,205 +253,125 @@ SEARXNG_INSTANCE_URL=https://searx.example.com
 # Perplexity / Sonar: choose one transport path
 PERPLEXITY_API_KEY=xxxxx
 OPENROUTER_API_KEY=xxxxx
-OPENROUTER_BASE_URL=https://openrouter.ai/api/v1  # optional override
+OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
 KILOCODE_API_KEY=xxxxx
 
 # Or use a custom OpenAI-compatible gateway
 PERPLEXITY_GATEWAY_API_KEY=xxxxx
 PERPLEXITY_BASE_URL=https://gateway.example.com/v1
-PERPLEXITY_MODEL=perplexity/sonar-pro  # accepts sonar* or perplexity/sonar*
+PERPLEXITY_MODEL=perplexity/sonar-pro
 ```
 
-Provider roles / 各 provider 角色：
+Provider roles:
 
-- Tavily: strongest premium default for deep search, news, extract
+- Tavily: strongest premium default for general search, news, and extract
 - Exa: semantic retrieval and extract fallback
-- Querit: multilingual AI search with native geo / language filters
-- Serper: Google-like search, strong for news and locale
-- Brave: structured general web search, especially useful when OpenClaw users already have `BRAVE_API_KEY`
-- SerpAPI: multi-engine routing including Baidu / Yandex
-- You.com: LLM-ready web search with freshness, locale, and mixed web/news coverage
+- Querit: multilingual AI search with native geo and language filters
+- Serper: Google-like search with strong news and locale coverage
+- Brave: structured general web search
+- SerpAPI: multi-engine routing including Baidu and Yandex
+- You.com: LLM-ready web search with freshness and mixed web/news coverage
 - SearXNG: self-hosted privacy-first metasearch fallback
-- Perplexity: answer-first grounded search for question-style queries via native or gateway transport
+- Perplexity / Sonar: answer-first grounded search via native or gateway transport
 - DDG: best-effort no-key baseline search
 - Fetch: no-key extract / crawl / map baseline
 - Render: optional local browser lane
 
-Browser render is explicit and bounded: challenge / anti-bot interstitial pages are reported as failures, not silent successes.  
-浏览器渲染是显式且受限的：遇到 challenge / anti-bot 中间页会明确报失败，不会伪装成成功。
+## Distribution Surfaces
 
-Current JSON outputs expose:
+The project has two honest distribution surfaces:
 
-- `routingSummary` for compact route transparency with `selectionMode`, `confidence`, and `topSignals`
-- `routing.diagnostics` for full route diagnostics when `--explain-routing` or `--plan` is used
-- `meta.searchType` / `meta.intentPreset` for user-facing search intent declarations
-- `cached` / `cache` for cache hit and TTL telemetry
-- `bootstrap.mjs` for an agent-readable runtime contract
+- **GitHub / local source tree**
+  The full surface, including `render.mjs`, `eval.mjs`, tests, and the deeper research toolchain.
+- **ClawHub publish package**
+  A generated core profile built by `scripts/build-clawhub-package.mjs`.
 
-Search UX additions:
+Why this split exists:
 
-- `--type`
-  User-facing result surface selector. Current shipped values are `web | news`.
-- `--preset`
-  User-facing intent preset. Current shipped values are `general | code | company | docs | research`.
+- local developers need the full runtime and benchmark surface
+- ClawHub moderation benefits from a narrower, more honest publish boundary
+- the registry package is still a code-backed Node runtime, not an instruction-only bundle
 
-These are product-layer inputs, not provider ids. They influence routing, but do not replace
-`--engine`.
+Detailed notes:
 
-## Research Layer / Research 层
+- [docs/clawhub-package.md](/Users/codez/develop/web-search-pro/docs/clawhub-package.md)
+- [docs/clawhub-compliance.md](/Users/codez/develop/web-search-pro/docs/clawhub-compliance.md)
 
-`research.mjs` is not a long-form report writer. It is a model-facing structured layer for:
+## Boundaries
 
-- question decomposition
-- retrieval planning
-- evidence normalization
-- evidence hygiene and source prioritization
-- claim clusters
-- candidate findings
-- uncertainties and limited follow-up
-
-`research.mjs` 不是长报告生成器，而是给模型消费的结构化层，负责：
-
-- 问题拆解
-- 检索规划
-- 证据归一化
-- 证据降噪与来源提权
-- claim 聚类
-- 候选结论
-- 面向模型的紧凑 handoff 摘要
-- 不确定性与有限补证据
-
-The intended boundary is:
-- the skill cleans and structures evidence
-- the upstream model reasons and writes
-
-这层的边界是：
-- skill 负责把证据洗干净、组织好
-- 上层模型负责推理和表达
-
-Detailed contract / 详细契约：
-- [docs/research-layer.md](/Users/codez/develop/web-search-pro/docs/research-layer.md)
-
-## Boundaries / 能力边界
-
-`web-search-pro 2.1` is strong at:
+`web-search-pro` is strong at:
 
 - capability-aware retrieval
+- explainable routing
 - safe extract / crawl / map
-- explainable federation
 - structured research packs
 - local diagnostics and review surfaces
-
-`web-search-pro 2.1` 擅长：
-
-- 能力感知的检索路由
-- 安全的 extract / crawl / map
-- 可解释的 federated retrieval
-- 结构化 research evidence pack
-- 本地诊断与审查视图
 
 It is intentionally not:
 
 - a hosted remote scraping service
-- a narrative report writer
-- a browser-first crawl system by default
+- a final report writer
+- a browser-first crawler by default
 - an unlimited no-key search guarantee
 
-它有意不是：
+## Positioning vs Other Skills
 
-- 托管式远程抓取服务
-- 最终报告写作器
-- 默认浏览器优先的抓取系统
-- 无上限、强保证的零 key 搜索服务
+- **vs lightweight `web-search` skills**
+  `web-search-pro` is heavier, but it gives you explainable routing, federation visibility, and a
+  path into `extract`, `crawl`, `map`, and `research`.
+- **vs search-router-first skills such as `web-search-plus`**
+  `web-search-pro` is broader as a retrieval stack. The differentiator is not only where to
+  search, but what happens after search.
+- **vs hosted scrape-first products**
+  `web-search-pro` stays local-first, more inspectable, and more explicit about safety boundaries
+  and runtime behavior.
 
-## Positioning vs Other Skills / 与其他 Skill 的定位对比
-
-This is a public-description snapshot as of **2026-03-13**.  
-以下对比基于 **2026-03-13** 的公开描述快照。
-
-- [web-search-plus](https://playbooks.com/skills/robbyczgw-cla/web-search-plus/web-search-plus)
-  Stronger as a search-router-first product; `web-search-pro 2.1` is broader as a retrieval stack.
-  更像“搜索路由器”产品；`web-search-pro 2.1` 则更像完整检索系统。
-- [Firecrawl Search](https://openclaw.army/skills/ashwingupy/firecrawl-search/)
-  Stronger for managed JS-heavy scraping; `web-search-pro 2.1` is more local, explainable, and provider-diverse.
-  更强于托管式 JS 重抓取；`web-search-pro 2.1` 更本地化、可解释、provider 更多样。
-- [ddg-web-search](https://playbooks.com/skills/openclaw/skills/ddg-web-search)
-  Lighter zero-key fallback; `web-search-pro 2.1` is intentionally heavier but much broader.
-  更轻的零 key fallback；`web-search-pro 2.1` 故意更重，但能力面明显更宽。
-- [web-search-free](https://playbooks.com/skills/openclaw/skills/web-search-free)
-  Stronger when you specifically want Exa MCP workflows first; `web-search-pro 2.1` is stronger on local orchestration and review surfaces.
-  如果你优先要 Exa MCP 工作流，它更合适；`web-search-pro 2.1` 更强于本地编排、自检和审查视图。
-
-## ClawHub Compliance / ClawHub 合规
-
-The compliance posture is:
-
-- metadata declares only the real hard requirement: `node`
-- provider credentials are optional
-- disclosure happens through `capabilities.mjs`, `doctor.mjs`, `bootstrap.mjs`, and `review.mjs`
-- no-key baseline behavior is explicit and bounded
-- safe fetch and render boundaries are inspectable
-
-当前合规策略是：
-
-- metadata 只声明真实硬依赖：`node`
-- provider 凭据是可选的
-- 凭据和能力披露通过 `capabilities.mjs`、`doctor.mjs`、`bootstrap.mjs`、`review.mjs`
-- no-key baseline 明确存在，但边界也明确
-- safe fetch 与 render 边界可检查、可解释
-
-Detailed notes / 详细说明：
-- [docs/clawhub-compliance.md](/Users/codez/develop/web-search-pro/docs/clawhub-compliance.md)
-- [docs/clawhub-package.md](/Users/codez/develop/web-search-pro/docs/clawhub-package.md)
-
-## Safety / 安全边界
+## Safety
 
 Safe fetch:
 
 - allows only `http` / `https`
 - blocks credential-bearing URLs
-- blocks localhost / private / metadata targets
+- blocks localhost, private, and metadata targets
 - revalidates redirects
 - keeps JavaScript disabled
 
-Safe fetch 安全边界：
-
-- 仅允许 `http` / `https`
-- 拒绝带凭据 URL
-- 拒绝 localhost / 私网 / metadata 目标
-- 重定向会再次校验
-- 默认不执行 JavaScript
-
 Browser render:
 
-- off by default
+- is off by default
 - uses a local headless browser only when enabled
 - revalidates navigations
 - can enforce same-origin-only navigation
 
-浏览器渲染通道：
+Challenge and anti-bot interstitial pages are reported as failures, not silent successes.
 
-- 默认关闭
-- 仅在启用时使用本地 headless browser
-- 导航会再次校验
-- 可强制 same-origin-only
+## Discovery Keywords
 
-## Docs / 文档索引
+`web search`, `news search`, `latest updates`, `current events`, `docs search`, `API docs`,
+`code search`, `company research`, `competitor analysis`, `site crawl`, `site map`,
+`multilingual search`, `Baidu search`, `Google-like search`, `answer-first search`,
+`cited answers`, `explainable routing`, `no-key baseline`
 
+## Versioning
+
+- Product / docs version: `2.1`
+- JSON schema version: `1.0`
+
+`2.x` is the retrieval-stack product line. Machine-readable payloads remain additive and
+compatible, so schema stays `1.0`.
+
+## Docs
+
+- [README_zh.md](/Users/codez/develop/web-search-pro/README_zh.md)
 - [CHANGELOG.md](/Users/codez/develop/web-search-pro/CHANGELOG.md)
-- [docs/research-layer.md](/Users/codez/develop/web-search-pro/docs/research-layer.md)
-- [docs/clawhub-compliance.md](/Users/codez/develop/web-search-pro/docs/clawhub-compliance.md)
-- [docs/clawhub-package.md](/Users/codez/develop/web-search-pro/docs/clawhub-package.md)
+- [docs/search-routing-model.md](/Users/codez/develop/web-search-pro/docs/search-routing-model.md)
 - [docs/search-ux-model.md](/Users/codez/develop/web-search-pro/docs/search-ux-model.md)
+- [docs/research-layer.md](/Users/codez/develop/web-search-pro/docs/research-layer.md)
 - [docs/head-to-head-eval.md](/Users/codez/develop/web-search-pro/docs/head-to-head-eval.md)
+- [docs/clawhub-package.md](/Users/codez/develop/web-search-pro/docs/clawhub-package.md)
+- [docs/clawhub-compliance.md](/Users/codez/develop/web-search-pro/docs/clawhub-compliance.md)
 - [docs/marketing-launch-kit.md](/Users/codez/develop/web-search-pro/docs/marketing-launch-kit.md)
-- [docs/scrapling-absorption-plan.md](/Users/codez/develop/web-search-pro/docs/scrapling-absorption-plan.md)
-- [docs/releases/v2.1.3.md](/Users/codez/develop/web-search-pro/docs/releases/v2.1.3.md)
-- [docs/releases/v2.1.2.md](/Users/codez/develop/web-search-pro/docs/releases/v2.1.2.md)
-- [docs/releases/v2.1.1.md](/Users/codez/develop/web-search-pro/docs/releases/v2.1.1.md)
-- [docs/releases/v2.1.0.md](/Users/codez/develop/web-search-pro/docs/releases/v2.1.0.md)
-- [docs/releases/v2.0.1.md](/Users/codez/develop/web-search-pro/docs/releases/v2.0.1.md)
-- [docs/releases/v2.0.0.md](/Users/codez/develop/web-search-pro/docs/releases/v2.0.0.md)
+- [docs/agent-contract-p0.md](/Users/codez/develop/web-search-pro/docs/agent-contract-p0.md)
 
 ## License
 

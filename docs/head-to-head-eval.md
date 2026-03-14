@@ -1,5 +1,10 @@
 # Head-to-Head Eval Model
 
+## Audience
+
+This document is for maintainers and benchmark authors who want reproducible comparisons between
+`web-search-pro` and other search skills such as `web-search-plus`.
+
 ## Goal
 
 This document defines a reproducible evaluation model for comparing `web-search-pro` against other

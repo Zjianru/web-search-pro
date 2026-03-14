@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 This project uses **product versioning** for the skill surface and **schema versioning** for
 machine-readable payloads.
 
+## [2.1.4] - 2026-03-14
+
+`2.1.4` is the documentation-clarity follow-up to `2.1.3`.
+
+It does not change routing, providers, or retrieval behavior. Instead, it splits the repository
+entry docs by audience and language so humans and agents no longer have to read the same mixed
+surface.
+
+### Changed
+
+- Split the root landing docs into:
+  - `README.md` as the English human/developer landing page
+  - `README_zh.md` as the standalone Chinese landing page
+- Added explicit language switching links at the top of both README files
+- Rewrote the root README flow around:
+  - what the skill is
+  - when to choose it
+  - when not to choose it
+  - the shortest successful path
+  - why federated search matters
+- Repositioned `SKILL.md` as an agent-facing runtime contract instead of a mixed human/agent page
+- Audited core docs and added clearer audience framing so developer docs, agent docs, compliance
+  docs, and launch docs are easier to navigate
+- Updated TDD coverage for the split README contract and language switcher
+
+### Compatibility
+
+- Product / docs line remains `2.1`
+- Release tag advances to `2.1.4`
+- Stable machine-readable JSON schema remains `1.0`
+- Search / extract / crawl / map / research behavior remains unchanged
+
 ## [2.1.3] - 2026-03-14
 
 `2.1.3` is the ClawHub metadata-alignment follow-up to `2.1.2`.

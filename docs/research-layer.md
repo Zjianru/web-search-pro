@@ -1,5 +1,10 @@
 # Research Layer
 
+## Audience
+
+This document is for contributors and advanced users who need to understand what `research.mjs`
+does, what it intentionally does not do, and how it hands evidence to upstream models.
+
 `research.mjs` is a structured research orchestration layer built on top of the retrieval stack.
 
 It is intentionally not a long-form report generator. The command is designed for agents and

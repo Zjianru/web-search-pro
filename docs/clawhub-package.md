@@ -1,5 +1,11 @@
 # ClawHub Package Profile
 
+## Audience
+
+This document is for release owners and maintainers who need to understand why the ClawHub package
+is narrower than the repository source tree, what it includes, and why that packaging boundary
+exists.
+
 `web-search-pro` has two valid distribution surfaces now:
 
 1. the full GitHub / local OpenClaw source tree

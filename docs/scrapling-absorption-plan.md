@@ -1,5 +1,10 @@
 # Scrapling Absorption Plan / Scrapling 吸收方案
 
+## Audience / 受众
+
+This document is for maintainers evaluating whether `Scrapling` ideas should be absorbed into
+`web-search-pro`, and if so, which parts fit the product and compliance boundary.
+
 ## Goal / 目标
 
 This document explains how `web-search-pro` should learn from `Scrapling` without breaking its
